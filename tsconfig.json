@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "module": "esnext",
+      "target": "esnext",
+      "types": ["@cloudflare/workers-types"]
+    }
+  }
+  

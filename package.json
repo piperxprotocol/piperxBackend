@@ -1,0 +1,35 @@
+{
+    "name": "piperx-pro-api",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "deploy": "wrangler deploy",
+        "dev": "wrangler dev",
+        "start": "wrangler dev",
+        "build": "wrangler build",
+        "test": "vitest"
+    },
+    "devDependencies": {
+        "@cloudflare/vitest-pool-workers": "^0.5.41",
+        "@cloudflare/workers-types": "^4.20250801.0",
+        "typescript": "^5.7.3",
+        "vitest": "^2.1.9",
+        "wrangler": "4.24.3"
+    },
+    "dependencies": {
+        "@pinata/sdk": "^2.1.0",
+        "@story-protocol/core-sdk": "^1.2.0-rc.4",
+        "@uniswap/sdk-core": "^7.7.2",
+        "@wagmi/connectors": "^5.8.5",
+        "@wagmi/core": "^2.17.3",
+        "ethers": "5.7.2",
+        "ethers-v6": "npm:ethers@6.15.0",
+        "hono": "^4.8.10",
+        "jsbi": "^3.2.5",
+        "nft.storage": "^7.2.0",
+        "pinata": "^1.10.1",
+        "puppeteer": "^24.1.0",
+        "viem": "^2.22.11"
+    },
+    "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728"
+}
