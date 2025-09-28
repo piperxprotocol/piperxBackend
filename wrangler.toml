@@ -1,7 +1,7 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "piperxpro"
 main = "src/index.js"
-compatibility_date = "2025-9-26"
+compatibility_date = "2025-09-26"
 compatibility_flags = ["nodejs_compat"]
 
 # Workers Logs
@@ -39,14 +39,6 @@ enabled = true
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#browser-rendering
 # [browser]
 # binding = "MY_BROWSER"
-
-# Bind a D1 database. D1 is Cloudflare’s native serverless SQL database.
-# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#d1-databases
-[[d1_databases]]
-binding = "DB"
-database_name = "piperx"
-database_id = "9a44db9a-1f76-4e87-844d-d60aa0e66710"
-
 
 [triggers]
 crons = ["*/1 * * * *"] 

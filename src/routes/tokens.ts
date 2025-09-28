@@ -46,50 +46,54 @@ const SUBGRAPH_URL_LAUNCHPAD =
   "https://api.goldsky.com/api/public/project_cmbrbzbw63ju201wzhfi0gtoa/subgraphs/story-launchpad/story-dex-v3/gn"
 
 
-async function updateCache(env: { PIPERX_KV: KVNamespace }, tokens: TokenInfo[]) {
-  if (!tokens.length) return []
-
-  const listKey = "tokens:list"
-  const lastCreatedKey = "tokens:lastCreatedAt"
-
-  const listStr = await env.PIPERX_KV.get(listKey)
-  let idList: string[] = listStr ? JSON.parse(listStr) : []
-  let maxCreatedAt = Number(await env.PIPERX_KV.get(lastCreatedKey)) || 0
-
-  for (const t of tokens) {
-    await env.PIPERX_KV.put(`token:${t.id}`, JSON.stringify(t))
-    if (t.createdAt && t.createdAt > maxCreatedAt) {
-      maxCreatedAt = t.createdAt
-    }
-  }
-
-  const newIds = tokens.map(t => t.id)
-  idList = newIds.concat(idList)
-
-  await env.PIPERX_KV.put(listKey, JSON.stringify(idList))
-  await env.PIPERX_KV.put(lastCreatedKey, String(maxCreatedAt))
-
-  return tokens
-}
-
-
-router.get("/refreshtokens", async (c) => {
-  try {
-    const lastCreatedAtStr = await c.env.PIPERX_KV.get("tokens:lastCreatedAt")
+  export async function updateCache(env: { PIPERX_KV: KVNamespace }) {
+    const listKey = "tokens:list"
+    const lastCreatedKey = "tokens:lastCreatedAt"
+  
+    const lastCreatedAtStr = await env.PIPERX_KV.get(lastCreatedKey)
     const lastCreatedAt = lastCreatedAtStr ? Number(lastCreatedAtStr) : 0
-
+  
     const data = await querySubgraph<{ tokens: TokenInfo[] }>(
       TOKENS_QUERY,
       { since: lastCreatedAt },
       SUBGRAPH_URL_LAUNCHPAD
     )
-
-    const newTokens = await updateCache(c.env, data.tokens)
-    return c.json({ added: newTokens.length, tokens: newTokens })
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500)
+  
+    const tokens = data.tokens
+    if (!tokens.length) return { added: 0, tokens: [] }
+  
+    let idList: string[] = []
+    const listStr = await env.PIPERX_KV.get(listKey)
+    if (listStr) {
+      idList = JSON.parse(listStr)
+    }
+  
+    let maxCreatedAt = lastCreatedAt
+  
+    for (const t of tokens) {
+      await env.PIPERX_KV.put(`token:${t.id}`, JSON.stringify(t))
+      if (t.createdAt && t.createdAt > maxCreatedAt) {
+        maxCreatedAt = t.createdAt
+      }
+    }
+  
+    const newIds = tokens.map((t) => t.id)
+    idList = newIds.concat(idList)
+  
+    await env.PIPERX_KV.put(listKey, JSON.stringify(idList))
+    await env.PIPERX_KV.put(lastCreatedKey, String(maxCreatedAt))
+  
+    return { added: tokens.length, tokens }
   }
-})
+  
+  router.get("/refreshtokens", async (c) => {
+    try {
+      const result = await updateCache(c.env)
+      return c.json(result)
+    } catch (err: any) {
+      return c.json({ error: err.message }, 500)
+    }
+  })
 
 router.get("/tokens", async (c) => {
   try {
