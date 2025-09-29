@@ -45,55 +45,138 @@ query Tokens($since: BigInt!) {
 const SUBGRAPH_URL_LAUNCHPAD =
   "https://api.goldsky.com/api/public/project_cmbrbzbw63ju201wzhfi0gtoa/subgraphs/story-launchpad/story-dex-v3/gn"
 
+const SUBGRAPH_URL_SWAPS =
+  "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
-  export async function updateCache(env: { PIPERX_KV: KVNamespace }) {
-    const listKey = "tokens:list"
-    const lastCreatedKey = "tokens:lastCreatedAt"
-  
-    const lastCreatedAtStr = await env.PIPERX_KV.get(lastCreatedKey)
-    const lastCreatedAt = lastCreatedAtStr ? Number(lastCreatedAtStr) : 0
-  
-    const data = await querySubgraph<{ tokens: TokenInfo[] }>(
-      TOKENS_QUERY,
-      { since: lastCreatedAt },
-      SUBGRAPH_URL_LAUNCHPAD
-    )
-  
-    const tokens = data.tokens
-    if (!tokens.length) return { added: 0, tokens: [] }
-  
-    let idList: string[] = []
-    const listStr = await env.PIPERX_KV.get(listKey)
-    if (listStr) {
-      idList = JSON.parse(listStr)
+
+const TOKEN_PAIRS_QUERY = `
+query TokenPairs($tokenId: String!) {
+  tokenPairs(
+    where: {
+      OR: [
+        {
+          token0_in: ["0x1514000000000000000000000000000000000000"] 
+          token1: $tokenId                                    
+          fee_in: [500, 3000, 10000]
+        }
+        {
+          token1_in: ["0x1514000000000000000000000000000000000000"] 
+          token0: $tokenId                                    
+          fee_in: [500, 3000, 10000]
+        }
+      ]
     }
-  
-    let maxCreatedAt = lastCreatedAt
-  
-    for (const t of tokens) {
-      await env.PIPERX_KV.put(`token:${t.id}`, JSON.stringify(t))
-      if (t.createdAt && t.createdAt > maxCreatedAt) {
-        maxCreatedAt = t.createdAt
-      }
+  ) {
+    id
+    pool
+    fee
+    token0 { id }
+    token1 { id }
+  }
+}`
+
+const PAIR_VOLUME_QUERY = `
+query GetPairsVolume($pairIds: [String!]!) {
+  tokenPairVolumeAggregates(
+    interval: day
+    where: { 
+      pair_: { id_in: $pairIds },
+      timestamp_gt: $since
     }
-  
-    const newIds = tokens.map((t) => t.id)
+    orderBy: timestamp
+    orderDirection: desc
+    first: 2
+  ) {
+    timestamp
+    volumeUSD
+    pair { id }
+  }
+}`
+
+
+async function getTokenPairs(tokenId: string) {
+  const res = await querySubgraph<{ tokenPairs: any[] }>(
+    TOKEN_PAIRS_QUERY,
+    { tokenId },
+    SUBGRAPH_URL_SWAPS
+  )
+  return res.tokenPairs.map(p => p.id)
+}
+
+async function checkPairVolume(pairIds: string[]): Promise<boolean> {
+  if (!pairIds.length) return false
+
+  const res = await querySubgraph<{ tokenPairVolumeAggregates: any[] }>(
+    PAIR_VOLUME_QUERY,
+    { pairIds },
+    SUBGRAPH_URL_SWAPS
+  )
+
+  let totalVol = 0
+  for (const v of res.tokenPairVolumeAggregates) {
+    totalVol += Number(v.volumeUSD)
+  }
+
+  return totalVol > 500
+}
+
+export async function updateCache(env: { PIPERX_KV: KVNamespace }) {
+  const listKey = "tokens:list"
+  const lastCreatedKey = "tokens:lastCreatedAt"
+
+  const lastCreatedAtStr = await env.PIPERX_KV.get(lastCreatedKey)
+  const lastCreatedAt = lastCreatedAtStr ? Number(lastCreatedAtStr) : 0
+
+  const data = await querySubgraph<{ tokens: TokenInfo[] }>(
+    TOKENS_QUERY,
+    { since: lastCreatedAt },
+    SUBGRAPH_URL_LAUNCHPAD
+  )
+
+  const tokens = data.tokens
+  if (!tokens.length) return { added: 0, tokens: [] }
+
+  let idList: string[] = []
+  const added: TokenInfo[] = []
+  const listStr = await env.PIPERX_KV.get(listKey)
+  if (listStr) {
+    idList = JSON.parse(listStr)
+  }
+
+  let maxCreatedAt = lastCreatedAt
+
+  for (const t of tokens) {
+    const pairIds = await getTokenPairs(t.id)
+    if (!pairIds.length) continue
+
+    const ok = await checkPairVolume(pairIds)
+    if (!ok) continue
+
+    await env.PIPERX_KV.put(`token:${t.id}`, JSON.stringify(t))
+    added.push(t)
+    if (t.createdAt && t.createdAt > maxCreatedAt) {
+      maxCreatedAt = t.createdAt
+    }
+  }
+
+  if (added.length) {
+    const newIds = added.map((t) => t.id)
     idList = newIds.concat(idList)
-  
     await env.PIPERX_KV.put(listKey, JSON.stringify(idList))
     await env.PIPERX_KV.put(lastCreatedKey, String(maxCreatedAt))
-  
-    return { added: tokens.length, tokens }
   }
-  
-  router.get("/refreshtokens", async (c) => {
-    try {
-      const result = await updateCache(c.env)
-      return c.json(result)
-    } catch (err: any) {
-      return c.json({ error: err.message }, 500)
-    }
-  })
+
+  return { added: added.length, tokens: added }
+}
+
+router.get("/refreshtokens", async (c) => {
+  try {
+    const result = await updateCache(c.env)
+    return c.json(result)
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500)
+  }
+})
 
 router.get("/tokens", async (c) => {
   try {
@@ -111,18 +194,6 @@ router.get("/tokens", async (c) => {
   } catch (err: any) {
     return c.json({ error: err.message }, 500)
   }
-
-  // try {
-  //   const cached = await c.env.PIPERX_KV.get("markets");
-  //   const data = await querySubgraph<{ tokens: TokenInfo[] }>(
-  //     TOKENS_QUERY,
-  //     {},
-  //     SUBGRAPH_URL_LAUNCHPAD
-  //   )
-  //   return c.json({ tokens: data.tokens })
-  // } catch (err: any) {
-  //   return c.json({ error: err.message }, 500)
-  // }
 })
 
 export default router
