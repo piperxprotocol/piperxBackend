@@ -3,6 +3,9 @@ import type { Env } from "../utils/env";
 
 const router = new Hono<{ Bindings: Env }>();
 
+
+const VOLUME_THRESHOLD = 500
+
 export type TokenInfo = {
   id: string
   name: string
@@ -47,6 +50,8 @@ const SUBGRAPH_URL_LAUNCHPAD =
 
 const SUBGRAPH_URL_SWAPS =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
+
+const SUBGRAPH_URL = "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/prod/gn";
 
 
 const TOKEN_PAIRS_QUERY = `
@@ -94,22 +99,28 @@ query GetPairsVolume($pairIds: [String!]!) {
 }`
 
 
-async function getTokenPairs(tokenId: string) {
+async function getTokenPairs(
+  tokenId: string,
+  subgraphUrl: string
+) {
   const res = await querySubgraph<{ tokenPairs: any[] }>(
     TOKEN_PAIRS_QUERY,
     { tokenId },
-    SUBGRAPH_URL_SWAPS
+    subgraphUrl
   )
   return res.tokenPairs.map(p => p.id)
 }
 
-async function checkPairVolume(pairIds: string[]): Promise<boolean> {
-  if (!pairIds.length) return false
+async function checkPairVolume(
+  pairIds: string[],
+  subgraphUrl: string
+): Promise<number> {
+  if (!pairIds.length) return 0
 
   const res = await querySubgraph<{ tokenPairVolumeAggregates: any[] }>(
     PAIR_VOLUME_QUERY,
     { pairIds },
-    SUBGRAPH_URL_SWAPS
+    subgraphUrl
   )
 
   let totalVol = 0
@@ -117,7 +128,7 @@ async function checkPairVolume(pairIds: string[]): Promise<boolean> {
     totalVol += Number(v.volumeUSD)
   }
 
-  return totalVol > 500
+  return totalVol
 }
 
 export async function updateCache(env: { PIPERX_KV: KVNamespace }) {
@@ -146,11 +157,13 @@ export async function updateCache(env: { PIPERX_KV: KVNamespace }) {
   let maxCreatedAt = lastCreatedAt
 
   for (const t of tokens) {
-    const pairIds = await getTokenPairs(t.id)
-    if (!pairIds.length) continue
+    const sotryhuntpairIds = await getTokenPairs(t.id, SUBGRAPH_URL_SWAPS)
+    const piperxpairIds = await getTokenPairs(t.id, SUBGRAPH_URL)
+    if (!sotryhuntpairIds.length && !piperxpairIds.length) continue
 
-    const ok = await checkPairVolume(pairIds)
-    if (!ok) continue
+    const storyhuntvalue = await checkPairVolume(sotryhuntpairIds, SUBGRAPH_URL_SWAPS)
+    const piperxvalue = await checkPairVolume(piperxpairIds, SUBGRAPH_URL)
+    if (!(storyhuntvalue + piperxvalue > VOLUME_THRESHOLD))continue
 
     await env.PIPERX_KV.put(`token:${t.id}`, JSON.stringify(t))
     added.push(t)

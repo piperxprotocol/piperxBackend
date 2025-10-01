@@ -44,6 +44,35 @@ query GetCurrentTokenPrices($tokenAddresses: [String!]!) {
 const SUBGRAPH_URL_PRICES =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
+export async function updatePrices(env: { PIPERX_KV: KVNamespace }) {
+  const listKey = "tokens:list"
+  const listStr = await env.PIPERX_KV.get(listKey)
+  if (!listStr) return { added: 0, prices: [] }
+
+  const ids: string[] = JSON.parse(listStr)
+  if (!ids.length) return { added: 0, prices: [] }
+
+  const data = await querySubgraph<{ tokens: TokenPrice[] }>(
+    PRICE_QUERY,
+    { tokenAddresses: ids },
+    SUBGRAPH_URL_PRICES
+  )
+
+  for (const t of data.tokens) {
+    await env.PIPERX_KV.put(`price:${t.id}`, String(t.latestPriceUSD ?? 0))
+  }
+  
+  await env.PIPERX_KV.put(
+    "tokens:prices",
+    JSON.stringify({
+      timestamp: Date.now(),
+      prices: data.tokens,
+    })
+  )
+
+  return { updated: data.tokens.length }
+}
+
 router.get("/prices", async (c) => {
   try {
     const listKey = "tokens:list"
@@ -59,7 +88,7 @@ router.get("/prices", async (c) => {
 
     const data = await querySubgraph<{ tokens: TokenPrice[] }>(
       PRICE_QUERY,
-      { tokenAddresses: ids}, 
+      { tokenAddresses: ids },
       SUBGRAPH_URL_PRICES
     )
 

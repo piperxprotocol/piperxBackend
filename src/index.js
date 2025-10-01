@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import tokensRouter, { updateCache } from './routes/tokens';
-import pricesRouter from './routes/prices';
+import pricesRouter, { updatePrices } from './routes/prices';
 
 const app = new Hono();
 
@@ -11,5 +11,13 @@ export default {
     fetch: app.fetch,
     scheduled: async (event, env, ctx) => {
         ctx.waitUntil(updateCache(env))
+
+        for (let i = 0; i < 8; i++) {
+            ctx.waitUntil((async () => {
+                await new Promise(r => setTimeout(r, i * 7000)) 
+                await updatePrices(env)
+            })())
+        }
     }
+
 }
