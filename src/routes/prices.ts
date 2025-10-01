@@ -6,7 +6,13 @@ const router = new Hono<{ Bindings: Env }>();
 export type TokenPrice = {
   id: string
   symbol: string
-  latestPriceUSD: number
+  price: number
+}
+
+type RawTokenPrice = {
+  id: string;
+  symbol: string;
+  latestPriceUSD: string
 }
 
 async function querySubgraph<T>(
@@ -52,60 +58,62 @@ export async function updatePrices(env: { PIPERX_KV: KVNamespace }) {
   const ids: string[] = JSON.parse(listStr)
   if (!ids.length) return { added: 0, prices: [] }
 
-  const data = await querySubgraph<{ tokens: TokenPrice[] }>(
+  const data = await querySubgraph<{ tokens: RawTokenPrice[] }>(
     PRICE_QUERY,
     { tokenAddresses: ids },
     SUBGRAPH_URL_PRICES
   )
 
-  for (const t of data.tokens) {
-    await env.PIPERX_KV.put(`price:${t.id}`, String(t.latestPriceUSD ?? 0))
-  }
-  
-  await env.PIPERX_KV.put(
-    "tokens:prices",
-    JSON.stringify({
-      timestamp: Date.now(),
-      prices: data.tokens,
-    })
-  )
+  const now = Date.now()
 
-  return { updated: data.tokens.length }
+  const prices = data.tokens.map(t => ({
+    id: t.id,
+    symbol: t.symbol,
+    price: Number(t.latestPriceUSD ?? 0)
+  }))
+
+  await env.PIPERX_KV.put("tokens:prices:now", JSON.stringify({ timestamp: now, prices }))
+
+  await maybeUpdateSnapshot(env, "tokens:prices:1h", now, prices, 3600_000)
+  await maybeUpdateSnapshot(env, "tokens:prices:6h", now, prices, 6 * 3600_000)
+  await maybeUpdateSnapshot(env, "tokens:prices:12h", now, prices, 12 * 3600_000)
+
+  return { updated: prices.length }
+}
+
+async function maybeUpdateSnapshot(
+  env: { PIPERX_KV: KVNamespace },
+  key: string,
+  now: number,
+  prices: TokenPrice[],
+  interval: number
+) {
+  const existing = await env.PIPERX_KV.get(key, "json") as { timestamp: number } | null
+  if (!existing || now - existing.timestamp >= interval) {
+    await env.PIPERX_KV.put(key, JSON.stringify({ timestamp: now, prices }), {
+      expirationTtl: 48 * 3600,
+    })
+  }
 }
 
 router.get("/prices", async (c) => {
   try {
-    const listKey = "tokens:list"
-    const listStr = await c.env.PIPERX_KV.get(listKey)
-    if (!listStr) {
-      return c.json({ error: "no token list in cache" }, 404)
-    }
+    const nowStr = await c.env.PIPERX_KV.get("tokens:prices:now")
+    if (!nowStr) return c.json({ error: "no current prices" }, 404)
 
-    const ids: string[] = JSON.parse(listStr)
-    if (ids.length === 0) {
-      return c.json({ error: "empty token list" }, 404)
-    }
-
-    const data = await querySubgraph<{ tokens: TokenPrice[] }>(
-      PRICE_QUERY,
-      { tokenAddresses: ids },
-      SUBGRAPH_URL_PRICES
-    )
+    const oneH = await c.env.PIPERX_KV.get("tokens:prices:1h")
+    const sixH = await c.env.PIPERX_KV.get("tokens:prices:6h")
+    const twelveH = await c.env.PIPERX_KV.get("tokens:prices:12h")
 
     return c.json({
-      timestamp: Date.now(),
-      count: data.tokens.length,
-      prices: data.tokens.map((t) => ({
-        id: t.id,
-        symbol: t.symbol,
-        latestPriceUSD: Number(t.latestPriceUSD ?? 0),
-      })),
+      now: JSON.parse(nowStr),
+      "1h": oneH ? JSON.parse(oneH) : null,
+      "6h": sixH ? JSON.parse(sixH) : null,
+      "12h": twelveH ? JSON.parse(twelveH) : null,
     })
   } catch (err: any) {
     return c.json({ error: err.message }, 500)
   }
 })
-
-
 
 export default router

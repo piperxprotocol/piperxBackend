@@ -12,12 +12,7 @@ export default {
     scheduled: async (event, env, ctx) => {
         ctx.waitUntil(updateCache(env))
 
-        for (let i = 0; i < 8; i++) {
-            ctx.waitUntil((async () => {
-                await new Promise(r => setTimeout(r, i * 7000)) 
-                await updatePrices(env)
-            })())
-        }
+        ctx.waitUntil(updatePrices(env))
     }
 
 }
