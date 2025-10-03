@@ -83,9 +83,9 @@ function buildHistory(
         lastPrice = rec.price_usd
         historyMap[`${i}h`] = rec.price_usd
       } else if (lastPrice !== null) {
-        historyMap[`${i}h`] = lastPrice 
+        historyMap[`${i}h`] = lastPrice
       } else {
-        historyMap[`${i}h`] = 0 
+        historyMap[`${i}h`] = 0
       }
     }
 
@@ -99,8 +99,19 @@ function buildHistory(
 router.get("/prices", async (c) => {
   try {
     const listStr = await c.env.PIPERX_KV.get("tokens:list")
-    if (!listStr) return c.json({ error: "no tokens" }, 404)
-    const tokenIds: string[] = JSON.parse(listStr)
+    const idsFromList: string[] = listStr ? JSON.parse(listStr) : []
+
+    const activeStr = await c.env.PIPERX_KV.get("tokens:active")
+    let idsFromActive: string[] = []
+    if (activeStr) {
+      const parsed = JSON.parse(activeStr)
+      idsFromActive = (parsed.tokens || []).map((t: any) => t.id)
+    }
+
+    const tokenIds = Array.from(new Set([...idsFromList, ...idsFromActive]))
+    if (!tokenIds.length) {
+      return c.json({ error: "no tokens" }, 404)
+    }
 
     const nowMap = await fetchNowPrices(tokenIds)
 

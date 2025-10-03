@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import tokensRouter, { updateCache } from './routes/tokens';
+import tokensRouter, { refreshActiveTokens } from './routes/tokens';
 import pricesRouter, { updatePrices } from './routes/prices';
 import webhookRouter from './routes/webhook';
 
@@ -7,14 +7,11 @@ const app = new Hono();
 
 app.route('/api/launchpad', tokensRouter)
 app.route('/api/launchpad', pricesRouter)
-app.route('/api/launchpad', webhookRouter);  
+app.route('/api/launchpad', webhookRouter);
 
 export default {
-    fetch: app.fetch,
-    scheduled: async (event, env, ctx) => {
-        ctx.waitUntil(updateCache(env))
-
-        ctx.waitUntil(updatePrices(env))
-    }
-
-}
+  fetch: app.fetch,
+  scheduled: async (event, env, ctx) => {
+    ctx.waitUntil(refreshActiveTokens(env)); 
+  },
+};
