@@ -1,7 +1,7 @@
 import { Hono } from "hono"
-import type { Env } from "../utils/env";
+import type { Env } from "../utils/env"
 
-const router = new Hono<{ Bindings: Env }>();
+const router = new Hono<{ Bindings: Env }>()
 
 export type TokenPrice = {
   id: string
@@ -10,8 +10,8 @@ export type TokenPrice = {
 }
 
 type RawTokenPrice = {
-  id: string;
-  symbol: string;
+  id: string
+  symbol: string
   latestPriceUSD: string
 }
 
@@ -25,18 +25,11 @@ async function querySubgraph<T>(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
   })
-
-  if (!resp.ok) {
-    throw new Error(`Subgraph error: ${resp.status}`)
-  }
-
+  if (!resp.ok) throw new Error(`Subgraph error: ${resp.status}`)
   const data = (await resp.json()) as any
-  if (data.errors) {
-    throw new Error(JSON.stringify(data.errors))
-  }
+  if (data.errors) throw new Error(JSON.stringify(data.errors))
   return data.data as T
 }
-
 
 const PRICE_QUERY = `
 query GetCurrentTokenPrices($tokenAddresses: [String!]!) {
@@ -50,68 +43,60 @@ query GetCurrentTokenPrices($tokenAddresses: [String!]!) {
 const SUBGRAPH_URL_PRICES =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
-export async function updatePrices(env: { PIPERX_KV: KVNamespace }) {
-  const listKey = "tokens:list"
-  const listStr = await env.PIPERX_KV.get(listKey)
-  if (!listStr) return { added: 0, prices: [] }
-
-  const ids: string[] = JSON.parse(listStr)
-  if (!ids.length) return { added: 0, prices: [] }
-
+async function fetchNowPrices(tokenIds: string[]): Promise<TokenPrice[]> {
+  if (!tokenIds.length) return []
   const data = await querySubgraph<{ tokens: RawTokenPrice[] }>(
     PRICE_QUERY,
-    { tokenAddresses: ids },
+    { tokenAddresses: tokenIds },
     SUBGRAPH_URL_PRICES
   )
-
-  const now = Date.now()
-
-  const prices = data.tokens.map(t => ({
+  return data.tokens.map(t => ({
     id: t.id,
     symbol: t.symbol,
-    price: Number(t.latestPriceUSD ?? 0)
+    price: Number(t.latestPriceUSD ?? 0),
   }))
-
-  await env.PIPERX_KV.put("tokens:prices:now", JSON.stringify({ timestamp: now, prices }))
-
-  await maybeUpdateSnapshot(env, "tokens:prices:1h", now, prices, 3600_000)
-  await maybeUpdateSnapshot(env, "tokens:prices:6h", now, prices, 6 * 3600_000)
-  await maybeUpdateSnapshot(env, "tokens:prices:12h", now, prices, 12 * 3600_000)
-
-  return { updated: prices.length }
 }
 
-async function maybeUpdateSnapshot(
-  env: { PIPERX_KV: KVNamespace },
-  key: string,
-  now: number,
-  prices: TokenPrice[],
-  interval: number
-) {
-  const existing = await env.PIPERX_KV.get(key, "json") as { timestamp: number } | null
-  if (!existing || now - existing.timestamp >= interval) {
-    await env.PIPERX_KV.put(key, JSON.stringify({ timestamp: now, prices }), {
-      expirationTtl: 48 * 3600,
-    })
+// ----------- KV 里的快照 -----------
+async function getSnapshot(env: Env, key: string): Promise<{ timestamp: number; prices: TokenPrice[] } | null> {
+  const str = await env.PIPERX_KV.get(key)
+  return str ? JSON.parse(str) : null
+}
+
+// ----------- 回补逻辑 -----------
+function fillMissingSnapshots(
+  tokenIds: string[],
+  nowPrices: TokenPrice[],
+  snapshot: { timestamp: number; prices: TokenPrice[] } | null
+): { timestamp: number; prices: TokenPrice[] } {
+  if (snapshot) {
+    return snapshot
+  } else {
+    return { timestamp: Date.now(), prices: nowPrices }
   }
 }
 
 router.get("/prices", async (c) => {
   try {
-    const nowStr = await c.env.PIPERX_KV.get("tokens:prices:now")
-    if (!nowStr) return c.json({ error: "no current prices" }, 404)
+    const listStr = await c.env.PIPERX_KV.get("tokens:list")
+    if (!listStr) return c.json({ error: "no tokens" }, 404)
 
-    const oneH = await c.env.PIPERX_KV.get("tokens:prices:1h")
-    const sixH = await c.env.PIPERX_KV.get("tokens:prices:6h")
-    const twelveH = await c.env.PIPERX_KV.get("tokens:prices:12h")
+    const tokenIds: string[] = JSON.parse(listStr)
+
+    const nowPrices = await fetchNowPrices(tokenIds)
+
+    const oneH = fillMissingSnapshots(tokenIds, nowPrices, await getSnapshot(c.env, "tokens:prices:1h"))
+    const sixH = fillMissingSnapshots(tokenIds, nowPrices, await getSnapshot(c.env, "tokens:prices:6h"))
+    const twelveH = fillMissingSnapshots(tokenIds, nowPrices, await getSnapshot(c.env, "tokens:prices:12h"))
 
     return c.json({
-      now: JSON.parse(nowStr),
-      "1h": oneH ? JSON.parse(oneH) : null,
-      "6h": sixH ? JSON.parse(sixH) : null,
-      "12h": twelveH ? JSON.parse(twelveH) : null,
+      now: { timestamp: Date.now(), prices: nowPrices },
+      "1h": oneH,
+      "6h": sixH,
+      "12h": twelveH,
     })
   } catch (err: any) {
+    console.error("Error in /prices:", err)
     return c.json({ error: err.message }, 500)
   }
 })

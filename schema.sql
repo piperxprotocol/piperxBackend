@@ -1,23 +1,18 @@
--- tokens 元信息（可选，若需要服务端持久化）
-CREATE TABLE IF NOT EXISTS tokens (
-id TEXT PRIMARY KEY,
-creator TEXT,
-name TEXT NOT NULL,
-symbol TEXT NOT NULL,
-created_at INTEGER
+CREATE TABLE swaps (
+  id INTEGER PRIMARY KEY,        -- 链上事件唯一标识 (去重用)
+  vid INTEGER NOT NULL,          -- Subgraph 序号
+  timestamp TEXT NOT NULL,       -- ISO8601 格式
+  pair TEXT NOT NULL,            -- 交易对地址
+  token_0_amount TEXT NOT NULL,  -- token0 数量
+  token_1_amount TEXT NOT NULL,  -- token1 数量
+  account TEXT NOT NULL,         -- 交易发起账户
+  amount_usd TEXT,               -- 折合 USD
+  amount_native TEXT             -- 折合 Native
 );
 
-
--- 分钟快照：每分钟每 token 一行
-CREATE TABLE IF NOT EXISTS token_minutes (
-id TEXT NOT NULL,
-symbol TEXT NOT NULL,
-minute_ts INTEGER NOT NULL,
-price_usd REAL NOT NULL,
-PRIMARY KEY (id, minute_ts)
+CREATE TABLE tokens (
+  id TEXT PRIMARY KEY,   -- token 地址
+  name TEXT NOT NULL,
+  symbol TEXT NOT NULL,
+  decimals INT NOT NULL
 );
-
-
--- 查询索引
-CREATE INDEX IF NOT EXISTS idx_token_minutes_symbol_ts
-ON token_minutes(symbol, minute_ts);
