@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import tokensRouter, { refreshActiveTokens } from './routes/tokens';
-import pricesRouter, { updatePrices } from './routes/prices';
+import pricesRouter from './routes/prices';
 import webhookRouter from './routes/webhook';
 
 const app = new Hono();

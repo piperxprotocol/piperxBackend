@@ -72,13 +72,13 @@ crons = ["*/1 * * * *"]
 # Bind a KV Namespace. Use KV as persistent storage for small key-value pairs.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#kv-namespaces
 [[kv_namespaces]]
-binding = "PIPERX_KV"
-id = "40270dad43394d7e96addae019061c75"
+binding = "PIPERX_PRO"
+id = "e1cef72644e247ae8117ca6067e47875"
 
 [[d1_databases]]
-binding = "DB"                       # 代码里用 c.env.DB 访问
-database_name = "piperx-swaps"       # D1 数据库的名字
-database_id = "xxxx-xxxx-xxxx-xxxx"  # `wrangler d1 list` 里能查到
+binding = "DB"                     
+database_name = "piperx_pro"      
+database_id = "3ed74a6b-9ff5-4266-b809-349f5a0782c6"  
 
 # Bind an mTLS certificate. Use to present a client certificate when communicating with another service.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#mtls-certificates
