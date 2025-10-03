@@ -1,7 +1,7 @@
 CREATE TABLE swaps (
-  id INTEGER PRIMARY KEY,        -- 链上事件唯一标识 (去重用)
+  id TEXT PRIMARY KEY,           -- 唯一标识 (字符串)
   vid INTEGER NOT NULL,          -- Subgraph 序号
-  timestamp TEXT NOT NULL,       -- ISO8601 格式
+  timestamp INTEGER NOT NULL,    -- UNIX 秒数
   pair TEXT NOT NULL,            -- 交易对地址
   token_0_amount TEXT NOT NULL,  -- token0 数量
   token_1_amount TEXT NOT NULL,  -- token1 数量
@@ -9,6 +9,7 @@ CREATE TABLE swaps (
   amount_usd TEXT,               -- 折合 USD
   amount_native TEXT             -- 折合 Native
 );
+
 
 CREATE TABLE tokens (
   id TEXT PRIMARY KEY,   -- token 地址

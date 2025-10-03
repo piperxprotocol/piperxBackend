@@ -4,7 +4,6 @@ import type { Env } from "../utils/env"
 const router = new Hono<{ Bindings: Env }>()
 
 router.post("/webhook/tokens", async (c) => {
-    console.log("1111")
     const body = await c.req.json<{ tokens: any[] }>()
     console.log("Received Token records:", body.tokens.length)
 
@@ -96,6 +95,22 @@ router.post("/webhook/swaps", async (c) => {
         console.error("Webhook /swaps error:", err)
         return c.json({ error: err.message }, 500)
     }
+})
+
+router.get("/debug/kv/tokensrecords", async (c) => {
+    const str = await c.env.PIPERX_PRO.get("tokens:records")
+    if (!str) {
+        return c.json({ message: "KV empty" })
+    }
+    return c.json(JSON.parse(str))
+})
+
+router.get("/debug/kv/tokensactive", async (c) => {
+    const str = await c.env.PIPERX_PRO.get("tokens:active")
+    if (!str) {
+        return c.json({ message: "KV empty" })
+    }
+    return c.json(JSON.parse(str))
 })
 
 export default router

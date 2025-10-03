@@ -35,25 +35,46 @@ async function getActiveTokensFromCache(env: Env): Promise<TokenInfo[]> {
 }
 
 export async function refreshActiveTokens(env: Env) {
-  const since = Math.floor(Date.now() / 1000) - 48 * 3600;
+  const sql = `
+    WITH split_pairs AS (
+      SELECT
+        s.*,
+        substr(s.pair, 1, instr(s.pair, '-') - 1) AS token0_id,
+        substr(s.pair, instr(s.pair, '-') + 1) AS token1_id
+      FROM swaps s
+      WHERE s.timestamp > strftime('%s','now') - 48*3600
+    ),
+    union_tokens AS (
+      SELECT token0_id AS token_id, CAST(amount_usd AS REAL) AS usd FROM split_pairs
+      UNION ALL
+      SELECT token1_id AS token_id, CAST(amount_usd AS REAL) AS usd FROM split_pairs
+    )
+    SELECT
+      token_id,
+      SUM(usd) AS total_usd
+    FROM union_tokens
+    GROUP BY token_id
+    HAVING total_usd > 500
+    ORDER BY total_usd DESC;
+  `;
 
-  const rows = await env.DB.prepare(`
-    SELECT t.id, t.name, t.symbol, t.decimals, SUM(CAST(s.amount_usd AS REAL)) AS total_usd
-    FROM swaps s
-    JOIN pairs p ON s.pair = p.id
-    JOIN tokens t ON (t.id = p.token0 OR t.id = p.token1)
-    WHERE s.timestamp > ?1
-    GROUP BY t.id
-    HAVING total_usd > ?2
-    ORDER BY total_usd DESC
-  `).bind(since, VOLUME_THRESHOLD).all<any>();
+  const rows = await env.DB.prepare(sql).all<any>();
+  let activeTokens = rows.results || [];
 
-  const activeTokens = rows.results || [];
+  console.log("Raw active tokens:", activeTokens);
+
+  const exclude = [
+    "0x1514000000000000000000000000000000000000".toLowerCase(),
+    "0xF1815bd50389c46847f0Bda824eC8da914045D14".toLowerCase(),
+  ];
+  activeTokens = activeTokens.filter(t => !exclude.includes(t.token_id.toLowerCase()));
+
+  console.log("Active Tokens (filtered):", JSON.stringify(activeTokens, null, 2));
 
   await env.PIPERX_PRO.put(
-    'tokens:active',
+    "tokens:active",
     JSON.stringify({ updatedAt: Date.now(), tokens: activeTokens }),
-    { expirationTtl: 3600 } // 缓存1小时
+    { expirationTtl: 3600 }
   );
 
   console.log(`refreshed active tokens: ${activeTokens.length}`);

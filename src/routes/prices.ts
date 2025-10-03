@@ -61,7 +61,8 @@ function buildHistory(
   nowHour: number,
   rows: any[],
   tokenIds: string[],
-  points = 48
+  points = 48,
+  nowMap: Record<string, number> = {}
 ) {
   const raw: Record<string, any[]> = {}
   for (const r of rows) {
@@ -85,7 +86,7 @@ function buildHistory(
       } else if (lastPrice !== null) {
         historyMap[`${i}h`] = lastPrice
       } else {
-        historyMap[`${i}h`] = 0
+        historyMap[`${i}h`] = nowMap[tokenId] ?? 0
       }
     }
 
@@ -98,20 +99,38 @@ function buildHistory(
 
 router.get("/prices", async (c) => {
   try {
-    const listStr = await c.env.PIPERX_PRO.get("tokens:list")
-    const idsFromList: string[] = listStr ? JSON.parse(listStr) : []
-
-    const activeStr = await c.env.PIPERX_PRO.get("tokens:active")
-    let idsFromActive: string[] = []
-    if (activeStr) {
-      const parsed = JSON.parse(activeStr)
-      idsFromActive = (parsed.tokens || []).map((t: any) => t.id)
+    const listStr = await c.env.PIPERX_PRO.get("tokens:records")
+    console.log("tokens:records raw:", listStr)
+    let idsFromList: string[] = []
+    if (listStr) {
+      try {
+        const parsed = JSON.parse(listStr)
+        idsFromList = parsed.map((t: any) => t.id)
+      } catch (e) {
+        console.error("Failed to parse tokens:records:", e)
+      }
     }
 
-    const tokenIds = Array.from(new Set([...idsFromList, ...idsFromActive]))
+    const activeStr = await c.env.PIPERX_PRO.get("tokens:active")
+    console.log("tokens:active raw:", activeStr)
+    let idsFromActive: string[] = []
+    if (activeStr) {
+      try {
+        const parsed = JSON.parse(activeStr)
+        idsFromActive = (parsed.tokens || [])
+          .map((t: any) => t.id || t.token_id) 
+          .filter((id: any) => !!id)
+      } catch (e) {
+        console.error("Failed to parse tokens:active:", e)
+      }
+    }
+
+    const tokenIds: string[] = Array.from(new Set([...idsFromList, ...idsFromActive]))
     if (!tokenIds.length) {
       return c.json({ error: "no tokens" }, 404)
     }
+
+    console.log("tokenIds >>>", tokenIds)
 
     const nowMap = await fetchNowPrices(tokenIds)
 
@@ -123,7 +142,8 @@ router.get("/prices", async (c) => {
        ORDER BY hour_bucket ASC`
     ).bind(nowHour).all<any>()
 
-    const history = buildHistory(nowHour, rows.results || [], tokenIds, 48)
+    const history = buildHistory(nowHour, rows.results || [], tokenIds, 48, nowMap)
+
 
     const result: Record<string, any> = {}
     for (const id of tokenIds) {
@@ -139,5 +159,6 @@ router.get("/prices", async (c) => {
     return c.json({ error: err.message }, 500)
   }
 })
+
 
 export default router
