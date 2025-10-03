@@ -41,8 +41,7 @@ enabled = true
 # binding = "MY_BROWSER"
 
 [triggers]
-crons = ["*/1 * * * *"] 
-
+crons = ["0 * * * *"]
 
 # Bind a dispatch namespace. Use Workers for Platforms to deploy serverless functions programmatically on behalf of your customers.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#dispatch-namespace-bindings-workers-for-platforms
