@@ -13,13 +13,13 @@ export type TokenInfo = {
 }
 
 async function getNewTokens(env: Env): Promise<TokenInfo[]> {
-  const listStr = await env.PIPERX_KV.get("tokens:list")
+  const listStr = await env.PIPERX_PRO.get("tokens:list")
   if (!listStr) return []
 
   const ids: string[] = JSON.parse(listStr)
   const tokens: TokenInfo[] = []
   for (const id of ids) {
-    const tStr = await env.PIPERX_KV.get(`token:${id}`)
+    const tStr = await env.PIPERX_PRO.get(`token:${id}`)
     if (tStr) {
       tokens.push(JSON.parse(tStr))
     }
@@ -28,13 +28,13 @@ async function getNewTokens(env: Env): Promise<TokenInfo[]> {
 }
 
 async function getActiveTokensFromCache(env: Env): Promise<TokenInfo[]> {
-  const cache = await env.PIPERX_KV.get("tokens:active")
+  const cache = await env.PIPERX_PRO.get("tokens:active")
   if (!cache) return []
   const parsed = JSON.parse(cache)
   return parsed.tokens || []
 }
 
-async function refreshActiveTokens(env: Env) {
+export async function refreshActiveTokens(env: Env) {
   const since = Math.floor(Date.now() / 1000) - 48 * 3600;
 
   const rows = await env.DB.prepare(`
@@ -50,7 +50,7 @@ async function refreshActiveTokens(env: Env) {
 
   const activeTokens = rows.results || [];
 
-  await env.PIPERX_KV.put(
+  await env.PIPERX_PRO.put(
     'tokens:active',
     JSON.stringify({ updatedAt: Date.now(), tokens: activeTokens }),
     { expirationTtl: 3600 } // 缓存1小时

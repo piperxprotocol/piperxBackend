@@ -4,10 +4,11 @@ import type { Env } from "../utils/env"
 const router = new Hono<{ Bindings: Env }>()
 
 router.post("/webhook/tokens", async (c) => {
+    console.log("1111")
     const body = await c.req.json<{ tokens: any[] }>()
     console.log("Received Token records:", body.tokens.length)
 
-    const existingStr = await c.env.PIPERX_KV.get("tokens:records")
+    const existingStr = await c.env.PIPERX_PRO.get("tokens:records")
     let records: any[] = existingStr ? JSON.parse(existingStr) : []
 
     for (const t of body.tokens) {
@@ -25,7 +26,7 @@ router.post("/webhook/tokens", async (c) => {
         })
     }
 
-    await c.env.PIPERX_KV.put("tokens:records", JSON.stringify(records), {
+    await c.env.PIPERX_PRO.put("tokens:records", JSON.stringify(records), {
         expirationTtl: 172800
     })
 

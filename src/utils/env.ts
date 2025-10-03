@@ -1,4 +1,4 @@
 export type Env = {
-    PIPERX_KV: KVNamespace;
+    PIPERX_PRO: KVNamespace;
     DB: D1Database
 };

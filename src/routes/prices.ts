@@ -98,10 +98,10 @@ function buildHistory(
 
 router.get("/prices", async (c) => {
   try {
-    const listStr = await c.env.PIPERX_KV.get("tokens:list")
+    const listStr = await c.env.PIPERX_PRO.get("tokens:list")
     const idsFromList: string[] = listStr ? JSON.parse(listStr) : []
 
-    const activeStr = await c.env.PIPERX_KV.get("tokens:active")
+    const activeStr = await c.env.PIPERX_PRO.get("tokens:active")
     let idsFromActive: string[] = []
     if (activeStr) {
       const parsed = JSON.parse(activeStr)
