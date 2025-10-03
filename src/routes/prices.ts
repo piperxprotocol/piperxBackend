@@ -64,38 +64,64 @@ function buildHistory(
   points = 48,
   nowMap: Record<string, number> = {}
 ) {
-  const raw: Record<string, any[]> = {}
+  const raw: Record<string, Map<number, number>> = {}
   for (const r of rows) {
-    if (!raw[r.token_id]) raw[r.token_id] = []
-    raw[r.token_id].push(r)
+    if (!raw[r.token_id]) raw[r.token_id] = new Map()
+    raw[r.token_id].set(r.hour_bucket, r.price_usd)
   }
 
   const result: Record<string, Record<string, number>> = {}
+
   for (const tokenId of tokenIds) {
-    const arr = raw[tokenId] || []
-    let idx = 0
-    let lastPrice: number | null = null
+    const map = raw[tokenId] || new Map()
     const historyMap: Record<string, number> = {}
+    const buffer: (number | null)[] = new Array(points).fill(null)
 
     for (let i = 1; i <= points; i++) {
       const bucket = nowHour - i
-      const rec = arr[idx] && arr[idx].hour_bucket === bucket ? arr[idx++] : null
-      if (rec) {
-        lastPrice = rec.price_usd
-        historyMap[`${i}h`] = rec.price_usd
-      } else if (lastPrice !== null) {
-        historyMap[`${i}h`] = lastPrice
-      } else {
-        historyMap[`${i}h`] = nowMap[tokenId] ?? 0
+      if (map.has(bucket)) {
+        buffer[i - 1] = map.get(bucket)!
       }
     }
+    console.log("Step 1 :", buffer)
+
+    let carry: number | null = null
+    for (let i = points - 1; i >= 0; i--) {
+      if (buffer[i] !== null) {
+        carry = buffer[i]!
+      } else if (carry !== null) {
+        buffer[i] = carry
+      }
+    }
+    console.log("Step 2 :", buffer)
+
+    let lastKnown = buffer.find((v) => v !== null)
+    if (lastKnown !== undefined) {
+      for (let i = 0; i < points; i++) {
+        if (buffer[i] === null) {
+          buffer[i] = lastKnown
+        } else {
+          lastKnown = buffer[i]!
+        }
+      }
+    } else {
+      const fallback = nowMap[tokenId] ?? 0
+      for (let i = 0; i < points; i++) {
+        buffer[i] = fallback
+      }
+    }
+    console.log("Step 3 :", buffer)
+
+    for (let i = 1; i <= points; i++) {
+      historyMap[`${i}h`] = buffer[i - 1]!
+    }
+    console.log("Step 4:", historyMap)
 
     result[tokenId] = historyMap
   }
 
   return result
 }
-
 
 router.get("/prices", async (c) => {
   try {
@@ -118,7 +144,7 @@ router.get("/prices", async (c) => {
       try {
         const parsed = JSON.parse(activeStr)
         idsFromActive = (parsed.tokens || [])
-          .map((t: any) => t.id || t.token_id) 
+          .map((t: any) => t.id || t.token_id)
           .filter((id: any) => !!id)
       } catch (e) {
         console.error("Failed to parse tokens:active:", e)
