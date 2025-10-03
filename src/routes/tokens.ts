@@ -8,7 +8,6 @@ export type TokenInfo = {
   name: string
   symbol: string
   decimals?: number
-  source?: "kv" | "db"
 }
 
 async function getNewTokens(env: Env): Promise<TokenInfo[]> {
@@ -20,8 +19,7 @@ async function getNewTokens(env: Env): Promise<TokenInfo[]> {
   for (const id of ids) {
     const tStr = await env.PIPERX_KV.get(`token:${id}`)
     if (tStr) {
-      const t = JSON.parse(tStr)
-      tokens.push({ ...t, source: "kv" })
+      tokens.push(JSON.parse(tStr))
     }
   }
   return tokens
@@ -31,36 +29,16 @@ async function getActiveTokensFromDB(env: Env): Promise<TokenInfo[]> {
   const since = Math.floor(Date.now() / 1000) - 48 * 3600
 
   const result = await env.DB.prepare(`
-    SELECT pair, SUM(CAST(amount_usd AS REAL)) AS total_usd
-    FROM swaps
-    WHERE timestamp > ?1
-    GROUP BY pair
-    HAVING total_usd > ?2
-  `).bind(since, 500).all<any>()
+    SELECT t.id, t.name, t.symbol, t.decimals
+    FROM swaps s
+    JOIN pairs p ON s.pair = p.id
+    JOIN tokens t ON (t.id = p.token0 OR t.id = p.token1)
+    WHERE s.timestamp > ?1
+    GROUP BY t.id
+    HAVING SUM(CAST(s.amount_usd AS REAL)) > ?2
+  `).bind(since, 500).all<TokenInfo>()
 
-  const activeTokens: TokenInfo[] = []
-
-  for (const row of result.results) {
-    const pairInfo = await env.DB.prepare(
-      `SELECT token0, token1 FROM pairs WHERE id = ?1`
-    ).bind(row.pair).first<any>()
-
-    if (pairInfo) {
-      for (const tokenId of [pairInfo.token0, pairInfo.token1]) {
-        const tokenRow = await env.DB.prepare(
-          `SELECT id, name, symbol, decimals FROM tokens WHERE id = ?1`
-        ).bind(tokenId).first<any>()
-
-        if (tokenRow) {
-          activeTokens.push({ ...tokenRow, source: "db" })
-        } else {
-          activeTokens.push({ id: tokenId, name: tokenId, symbol: "UNKNOWN", source: "db" })
-        }
-      }
-    }
-  }
-
-  return activeTokens
+  return result.results || []
 }
 
 router.get("/tokens", async (c) => {

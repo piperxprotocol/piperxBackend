@@ -16,3 +16,11 @@ CREATE TABLE tokens (
   symbol TEXT NOT NULL,
   decimals INT NOT NULL
 );
+
+CREATE TABLE prices (
+  token_id TEXT NOT NULL,
+  hour_bucket INTEGER NOT NULL, -- 小时桶
+  ts INTEGER NOT NULL,          -- 实际时间戳（最后一次的）
+  price_usd REAL NOT NULL,
+  PRIMARY KEY (token_id, hour_bucket)
+);

@@ -43,58 +43,86 @@ query GetCurrentTokenPrices($tokenAddresses: [String!]!) {
 const SUBGRAPH_URL_PRICES =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
-async function fetchNowPrices(tokenIds: string[]): Promise<TokenPrice[]> {
-  if (!tokenIds.length) return []
+async function fetchNowPrices(tokenIds: string[]): Promise<Record<string, number>> {
+  if (!tokenIds.length) return {}
   const data = await querySubgraph<{ tokens: RawTokenPrice[] }>(
     PRICE_QUERY,
     { tokenAddresses: tokenIds },
     SUBGRAPH_URL_PRICES
   )
-  return data.tokens.map(t => ({
-    id: t.id,
-    symbol: t.symbol,
-    price: Number(t.latestPriceUSD ?? 0),
-  }))
-}
-
-// ----------- KV 里的快照 -----------
-async function getSnapshot(env: Env, key: string): Promise<{ timestamp: number; prices: TokenPrice[] } | null> {
-  const str = await env.PIPERX_KV.get(key)
-  return str ? JSON.parse(str) : null
-}
-
-// ----------- 回补逻辑 -----------
-function fillMissingSnapshots(
-  tokenIds: string[],
-  nowPrices: TokenPrice[],
-  snapshot: { timestamp: number; prices: TokenPrice[] } | null
-): { timestamp: number; prices: TokenPrice[] } {
-  if (snapshot) {
-    return snapshot
-  } else {
-    return { timestamp: Date.now(), prices: nowPrices }
+  const map: Record<string, number> = {}
+  for (const t of data.tokens) {
+    map[t.id] = Number(t.latestPriceUSD ?? 0)
   }
+  return map
 }
+
+function buildHistory(
+  nowHour: number,
+  rows: any[],
+  tokenIds: string[],
+  points = 48
+) {
+  const raw: Record<string, any[]> = {}
+  for (const r of rows) {
+    if (!raw[r.token_id]) raw[r.token_id] = []
+    raw[r.token_id].push(r)
+  }
+
+  const result: Record<string, Record<string, number>> = {}
+  for (const tokenId of tokenIds) {
+    const arr = raw[tokenId] || []
+    let idx = 0
+    let lastPrice: number | null = null
+    const historyMap: Record<string, number> = {}
+
+    for (let i = 1; i <= points; i++) {
+      const bucket = nowHour - i
+      const rec = arr[idx] && arr[idx].hour_bucket === bucket ? arr[idx++] : null
+      if (rec) {
+        lastPrice = rec.price_usd
+        historyMap[`${i}h`] = rec.price_usd
+      } else if (lastPrice !== null) {
+        historyMap[`${i}h`] = lastPrice 
+      } else {
+        historyMap[`${i}h`] = 0 
+      }
+    }
+
+    result[tokenId] = historyMap
+  }
+
+  return result
+}
+
 
 router.get("/prices", async (c) => {
   try {
     const listStr = await c.env.PIPERX_KV.get("tokens:list")
     if (!listStr) return c.json({ error: "no tokens" }, 404)
-
     const tokenIds: string[] = JSON.parse(listStr)
 
-    const nowPrices = await fetchNowPrices(tokenIds)
+    const nowMap = await fetchNowPrices(tokenIds)
 
-    const oneH = fillMissingSnapshots(tokenIds, nowPrices, await getSnapshot(c.env, "tokens:prices:1h"))
-    const sixH = fillMissingSnapshots(tokenIds, nowPrices, await getSnapshot(c.env, "tokens:prices:6h"))
-    const twelveH = fillMissingSnapshots(tokenIds, nowPrices, await getSnapshot(c.env, "tokens:prices:12h"))
+    const nowHour = Math.floor(Date.now() / 3600_000)
+    const rows = await c.env.DB.prepare(
+      `SELECT token_id, price_usd, hour_bucket
+       FROM prices
+       WHERE hour_bucket <= ?1 AND hour_bucket > ?1 - 48
+       ORDER BY hour_bucket ASC`
+    ).bind(nowHour).all<any>()
 
-    return c.json({
-      now: { timestamp: Date.now(), prices: nowPrices },
-      "1h": oneH,
-      "6h": sixH,
-      "12h": twelveH,
-    })
+    const history = buildHistory(nowHour, rows.results || [], tokenIds, 48)
+
+    const result: Record<string, any> = {}
+    for (const id of tokenIds) {
+      result[id] = {
+        now: nowMap[id] ?? 0,
+        history: history[id] || {},
+      }
+    }
+
+    return c.json({ prices: result })
   } catch (err: any) {
     console.error("Error in /prices:", err)
     return c.json({ error: err.message }, 500)

@@ -5,6 +5,10 @@ const router = new Hono<{ Bindings: Env }>()
 
 router.post("/webhook/tokens", async (c) => {
     const body = await c.req.json<{ tokens: any[] }>()
+    console.log("Received Token records:", body.tokens.length)
+
+    const existingStr = await c.env.PIPERX_KV.get("tokens:records")
+    let records: any[] = existingStr ? JSON.parse(existingStr) : []
 
     for (const t of body.tokens) {
         await c.env.DB.prepare(
@@ -12,20 +16,22 @@ router.post("/webhook/tokens", async (c) => {
          VALUES (?1, ?2, ?3, ?4)`
         ).bind(t.id, t.name, t.symbol, t.decimals).run()
 
-        await c.env.PIPERX_KV.put(
-            `token:${t.id}`,
-            JSON.stringify({
-                id: t.id,
-                name: t.name,
-                symbol: t.symbol,
-                decimals: t.decimals
-            }),
-            { expirationTtl: 172800 }
-        )
+        records = records.filter(r => r.id !== t.id)
+        records.unshift({
+            id: t.id,
+            name: t.name,
+            symbol: t.symbol,
+            decimals: t.decimals
+        })
     }
 
-    return c.json({ status: "ok" })
+    await c.env.PIPERX_KV.put("tokens:records", JSON.stringify(records), {
+        expirationTtl: 172800
+    })
+
+    return c.json({ status: "ok", count: body.tokens.length })
 })
+
 
 router.post("/webhook/prices", async (c) => {
     try {
@@ -34,33 +40,19 @@ router.post("/webhook/prices", async (c) => {
 
         for (const rec of records) {
             const tokenId = rec.token
+            const ts = Math.floor(new Date(rec.timestamp).getTime() / 1000) // 秒级
+            const hourBucket = Math.floor(ts / 3600) // 小时桶
 
-            const ts = new Date(rec.timestamp).getTime()
-            const hourBucket = Math.floor(ts / 3600_000)
-
-            const pricePoint = {
-                price_usd: rec.price_usd,
-                ts,
-                bucket: hourBucket,
+            try {
+                await c.env.DB.prepare(
+                    `INSERT INTO prices (token_id, hour_bucket, ts, price_usd)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(token_id, hour_bucket)
+             DO UPDATE SET ts = excluded.ts, price_usd = excluded.price_usd`
+                ).bind(tokenId, hourBucket, ts, rec.price_usd).run()
+            } catch (e) {
+                console.error("DB insert error for price:", tokenId, e)
             }
-
-            const key = `prices:token:${tokenId}:buckets`
-            const existingStr = await c.env.PIPERX_KV.get(key)
-            let buckets: typeof pricePoint[] = existingStr ? JSON.parse(existingStr) : []
-
-            const cutoff = hourBucket - 48
-            buckets = buckets.filter(b => b.bucket > cutoff)
-
-            const idx = buckets.findIndex(b => b.bucket === hourBucket)
-            if (idx >= 0) {
-                buckets[idx] = pricePoint
-            } else {
-                buckets.push(pricePoint)
-            }
-
-            await c.env.PIPERX_KV.put(key, JSON.stringify(buckets), {
-                expirationTtl: 48 * 3600,
-            })
         }
 
         return c.json({ ok: true, count: records.length })
@@ -69,6 +61,7 @@ router.post("/webhook/prices", async (c) => {
         return c.json({ error: err.message }, 500)
     }
 })
+
 
 router.post("/webhook/swaps", async (c) => {
     try {
