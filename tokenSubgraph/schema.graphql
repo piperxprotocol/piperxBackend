@@ -1,0 +1,8 @@
+type Token @entity(immutable: false) {
+  id: ID!
+  name: String!
+  symbol: String!
+  decimals: Int!
+  creator: String!
+  createdAt: BigInt!
+}
