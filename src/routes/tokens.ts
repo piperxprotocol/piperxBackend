@@ -3,7 +3,7 @@ import type { Env } from "../utils/env"
 
 const router = new Hono<{ Bindings: Env }>()
 
-const VOLUME_THRESHOLD = 500;
+const VOLUME_THRESHOLD = 500000000;
 
 export type TokenInfo = {
   id: string
@@ -54,7 +54,7 @@ export async function refreshActiveTokens(env: Env) {
       SUM(usd) AS total_usd
     FROM union_tokens
     GROUP BY token_id
-    HAVING total_usd > 500
+    HAVING total_usd > 500000000
     ORDER BY total_usd DESC;
   `;
 

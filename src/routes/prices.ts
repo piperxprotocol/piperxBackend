@@ -95,13 +95,13 @@ function buildHistory(
     }
     console.log("Step 2 :", buffer)
 
-    let lastKnown = buffer.find((v) => v !== null)
+    let lastKnown = buffer.find((v) => v !== null) 
     if (lastKnown !== undefined) {
       for (let i = 0; i < points; i++) {
         if (buffer[i] === null) {
           buffer[i] = lastKnown
         } else {
-          lastKnown = buffer[i]!
+          lastKnown = buffer[i]! 
         }
       }
     } else {
@@ -111,7 +111,7 @@ function buildHistory(
       }
     }
     console.log("Step 3 :", buffer)
-
+    
     for (let i = 1; i <= points; i++) {
       historyMap[`${i}h`] = buffer[i - 1]!
     }
@@ -185,6 +185,5 @@ router.get("/prices", async (c) => {
     return c.json({ error: err.message }, 500)
   }
 })
-
 
 export default router

@@ -4,34 +4,73 @@ import type { Env } from "../utils/env"
 const router = new Hono<{ Bindings: Env }>()
 
 router.post("/webhook/tokens", async (c) => {
-    const body = await c.req.json<{ tokens: any[] }>()
-    console.log("Received Token records:", body.tokens.length)
+    try {
+        const body = await c.req.json<any>()
+        console.log("Webhook /tokens raw body:", body)
 
-    const existingStr = await c.env.PIPERX_PRO.get("tokens:records")
-    let records: any[] = existingStr ? JSON.parse(existingStr) : []
+        let tokens: any[] = []
+        if (Array.isArray(body.tokens)) {
+            tokens = body.tokens
+        } else if (body.tokens && typeof body.tokens === "object") {
+            tokens = [body.tokens]
+        } else if (Array.isArray(body)) {
+            tokens = body
+        } else if (body.id) {
+            tokens = [body]
+        } else {
+            return c.json({ error: "Invalid payload, expected token(s)" }, 400)
+        }
 
-    for (const t of body.tokens) {
-        await c.env.DB.prepare(
-            `INSERT OR IGNORE INTO tokens (id, name, symbol, decimals)
-         VALUES (?1, ?2, ?3, ?4)`
-        ).bind(t.id, t.name, t.symbol, t.decimals).run()
+        console.log("Received Token records:", tokens.length)
 
-        records = records.filter(r => r.id !== t.id)
-        records.unshift({
-            id: t.id,
-            name: t.name,
-            symbol: t.symbol,
-            decimals: t.decimals
-        })
+        let records: any[] = []
+        try {
+            const existingStr = await c.env.PIPERX_PRO.get("tokens:records")
+            records = existingStr ? JSON.parse(existingStr) : []
+        } catch (e) {
+            console.error("Failed to parse KV tokens:records:", e)
+        }
+
+        for (const t of tokens) {
+            if (!t.id || !t.symbol) {
+                console.warn("Skip invalid token:", t)
+                continue
+            }
+
+            const exists = records.some((r) => r.id === t.id);
+            if (exists) {
+                console.log(`Token already exists in KV, skip: ${t.symbol} (${t.id})`);
+                continue;
+            }
+
+            await c.env.DB.prepare(
+                `INSERT OR IGNORE INTO tokens (id, name, symbol, decimals)
+           VALUES (?1, ?2, ?3, ?4)`
+            ).bind(t.id, t.name, t.symbol, t.decimals).run()
+
+            records = records.filter(r => r.id !== t.id)
+            records.unshift({
+                id: t.id,
+                name: t.name,
+                symbol: t.symbol,
+                decimals: t.decimals
+            })
+        }
+
+        try {
+            await c.env.PIPERX_PRO.put("tokens:records", JSON.stringify(records), {
+                expirationTtl: 172800
+            })
+        } catch (e) {
+            console.error("KV put failed:", e)
+        }
+
+        return c.json({ status: "ok", count: tokens.length })
+    } catch (err: any) {
+        console.error("Webhook /tokens error:", err)
+        return c.json({ error: err.message || "Internal Server Error" }, 500)
     }
-
-    await c.env.PIPERX_PRO.put("tokens:records", JSON.stringify(records), {
-        expirationTtl: 172800
-    })
-
-    return c.json({ status: "ok", count: body.tokens.length })
 })
-
 
 router.post("/webhook/prices", async (c) => {
     try {
