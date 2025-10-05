@@ -72,12 +72,12 @@ crons = ["0 * * * *"]
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#kv-namespaces
 [[kv_namespaces]]
 binding = "PIPERX_PRO"
-id = "e1cef72644e247ae8117ca6067e47875"
+id = "e72f92323b6c4008b957ad9203084a72"
 
 [[d1_databases]]
 binding = "DB"                     
 database_name = "piperx_pro"      
-database_id = "3ed74a6b-9ff5-4266-b809-349f5a0782c6"  
+database_id = "6a8895dc-f1bd-4057-b72a-e23c7fff0978"  
 
 # Bind an mTLS certificate. Use to present a client certificate when communicating with another service.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#mtls-certificates

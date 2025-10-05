@@ -57,21 +57,20 @@ function buildHistory(
 
 router.get("/prices", async (c) => {
   try {
-    const listStr = await c.env.PIPERX_PRO.get("tokens:records")
+    // Fetch tokens created within last 48 hours from database
+    const fortyEightHoursAgo = Math.floor(Date.now() / 1000) - (48 * 3600) // 48 hours ago in seconds
+    
+    const recentTokensResult = await c.env.DB.prepare(
+      `SELECT id, name, symbol, decimals, created_at
+       FROM tokens 
+       WHERE created_at >= ?`
+    ).bind(fortyEightHoursAgo).all<any>()
+    
+    const records: any[] = recentTokensResult.results || []
+    const idsFromList: string[] = records.map((t: any) => t.id)
+
+    // Still fetch active tokens from KV
     const activeStr = await c.env.PIPERX_PRO.get("tokens:active")
-
-    let records: any[] = []
-    let idsFromList: string[] = []
-    if (listStr) {
-      try {
-        const parsed = JSON.parse(listStr)
-        records = parsed
-        idsFromList = parsed.map((t: any) => t.id)
-      } catch (e) {
-        console.error("Failed to parse tokens:records:", e)
-      }
-    }
-
     let activeTokens: any[] = []
     let idsFromActive: string[] = []
     if (activeStr) {
@@ -87,9 +86,12 @@ router.get("/prices", async (c) => {
     }
 
     const tokenIds: string[] = Array.from(new Set([...idsFromList, ...idsFromActive]))
-    if (!tokenIds.length) return c.json({ error: "no tokens" }, 404)
-
+    console.log("idsFromList:", idsFromList)
+    console.log("idsFromActive:", idsFromActive)
     console.log("tokenIds >>>", tokenIds)
+    console.log("tokenIds.length:", tokenIds.length)
+
+    if (!tokenIds.length) return c.json({ error: "no tokens" }, 404)
 
     const nowHour = Math.floor(Date.now() / 3600_000)
     console.log("nowHour >>>", nowHour)
@@ -116,7 +118,7 @@ router.get("/prices", async (c) => {
     }
 
     const history = buildHistory(nowHour, allRows, tokenIds, 48, nowMap)
-
+    console.log("history >>>", history)
     const metaMap: Record<string, { symbol: string; created_at: string | null }> = {}
     for (const rec of records) {
       metaMap[rec.id.toLowerCase()] = {
@@ -134,7 +136,7 @@ router.get("/prices", async (c) => {
         }
       }
     }
-
+    console.log("metaMap >>>", metaMap)
     const result: Record<string, any> = {}
     for (const id of tokenIds) {
       const meta = metaMap[id.toLowerCase()] || { symbol: "-", created_at: null }
@@ -146,7 +148,7 @@ router.get("/prices", async (c) => {
         history: history[id] || {},
       }
     }
-
+    console.log("result >>>", result)
     return c.json({ prices: result })
   } catch (err: any) {
     console.error("Error in /prices:", err)
