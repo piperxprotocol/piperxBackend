@@ -51,7 +51,7 @@ router.post("/webhook/tokens", async (c) => {
                 t.name,
                 t.symbol,
                 t.decimals,
-                t.createdAt
+                t.created_at
             ).run()
 
             records = records.filter(r => r.id !== t.id)
@@ -60,7 +60,7 @@ router.post("/webhook/tokens", async (c) => {
                 name: t.name,
                 symbol: t.symbol,
                 decimals: t.decimals,
-                created_at: t.createdAt
+                created_at: t.created_at
             })
         }
 
