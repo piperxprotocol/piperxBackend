@@ -75,7 +75,7 @@ router.post("/webhook/tokens", async (c) => {
 router.post("/webhook/prices", async (c) => {
     try {
         const records = await c.req.json<any[]>()
-        console.log("Received Price records:", records.length)
+        console.log("Received Price records:", records)
 
         for (const rec of records) {
             const tokenId = rec.token
@@ -105,7 +105,7 @@ router.post("/webhook/prices", async (c) => {
 router.post("/webhook/swaps", async (c) => {
     try {
         const records = await c.req.json<any[]>()
-        console.log("Received Swap records:", records.length)
+        console.log("Received Swap records:", records)
 
         for (const rec of records) {
             try {
