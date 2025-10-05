@@ -13,7 +13,7 @@ export type TokenInfo = {
 }
 
 async function getNewTokens(env: Env): Promise<TokenInfo[]> {
-  const listStr = await env.PIPERX_PRO.get("tokens:list")
+  const listStr = await env.PIPERX_PRO.get("tokens:records")
   if (!listStr) return []
 
   const ids: string[] = JSON.parse(listStr)
