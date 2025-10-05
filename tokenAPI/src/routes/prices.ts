@@ -60,20 +60,24 @@ router.get("/prices", async (c) => {
     const listStr = await c.env.PIPERX_PRO.get("tokens:records")
     const activeStr = await c.env.PIPERX_PRO.get("tokens:active")
 
+    let records: any[] = []
     let idsFromList: string[] = []
     if (listStr) {
       try {
         const parsed = JSON.parse(listStr)
+        records = parsed
         idsFromList = parsed.map((t: any) => t.id)
       } catch (e) {
         console.error("Failed to parse tokens:records:", e)
       }
     }
 
+    let activeTokens: any[] = []
     let idsFromActive: string[] = []
     if (activeStr) {
       try {
         const parsed = JSON.parse(activeStr)
+        activeTokens = parsed.tokens || []
         idsFromActive = (parsed.tokens || [])
           .map((t: any) => t.id || t.token_id)
           .filter((id: any) => !!id)
@@ -113,9 +117,31 @@ router.get("/prices", async (c) => {
 
     const history = buildHistory(nowHour, allRows, tokenIds, 48, nowMap)
 
+    const metaMap: Record<string, { symbol: string; created_at: string | null }> = {}
+    for (const rec of records) {
+      metaMap[rec.id.toLowerCase()] = {
+        symbol: rec.symbol || "-",
+        created_at: rec.created_at || null,
+      }
+    }
+    for (const t of activeTokens) {
+      const id = (t.id || t.token_id || "").toLowerCase()
+      if (!id) continue
+      if (!metaMap[id]) {
+        metaMap[id] = {
+          symbol: t.symbol || "-",
+          created_at: t.created_at || null,
+        }
+      }
+    }
+
     const result: Record<string, any> = {}
     for (const id of tokenIds) {
+      const meta = metaMap[id.toLowerCase()] || { symbol: "-", created_at: null }
       result[id] = {
+        id,
+        symbol: meta.symbol,
+        created_at: meta.created_at,
         now: nowMap[id] ?? 0,
         history: history[id] || {},
       }

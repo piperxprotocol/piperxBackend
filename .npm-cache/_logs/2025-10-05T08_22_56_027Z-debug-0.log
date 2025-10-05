@@ -1,0 +1,27 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.2
+2 info using node@v22.15.1
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:D:\piperxBackend\.npmrc
+5 silly config load:file:C:\Users\admin\.npmrc
+6 silly config load:file:C:\Users\admin\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm exec wrangler d1 execute piperx_pro --local --command 
+7 verbose title INSERT OR REPLACE INTO swaps (id, vid, timestamp, pair, token_0_amount, token_1_amount, account, amount_usd, amount_native) VALUES
+7 verbose title ('swap_1', 1001, strftime('%s','now') - 1000, '0x000dbb7923ce640cb52f55ec91be59a5680d8e96-0x1514000000000000000000000000000000000000', '1000000000000000000', '2000000000000000000', '0xabc', '700000000', '0'),
+7 verbose title ('swap_2', 1002, strftime('%s','now') - 2000, '0x000dbb7923ce640cb52f55ec91be59a5680d8e96-0x1514000000000000000000000000000000000000', '2000000000000000000', '4000000000000000000', '0xdef', '800000000', '0'),
+7 verbose title ('swap_3', 1003, strftime('%s','now') - 3000, '0x000ee8f233b41698839c788ac35569ed79028990-0x1514000000000000000000000000000000000000', '3000000000000000000', '5000000000000000000', '0xghi', '900000000', '0'),
+7 verbose title ('swap_4', 1004, strftime('%s','now') - 4000, '0x000ee8f233b41698839c788ac35569ed79028990-0x1514000000000000000000000000000000000000', '4000000000000000000', '8000000000000000000', '0xjkl', '950000000', '0');
+8 verbose argv "exec" "--" "wrangler" "d1" "execute" "piperx_pro" "--local" "--command" "\nINSERT OR REPLACE INTO swaps (id, vid, timestamp, pair, token_0_amount, token_1_amount, account, amount_usd, amount_native) VALUES\n('swap_1', 1001, strftime('%s','now') - 1000, '0x000dbb7923ce640cb52f55ec91be59a5680d8e96-0x1514000000000000000000000000000000000000', '1000000000000000000', '2000000000000000000', '0xabc', '700000000', '0'),\n('swap_2', 1002, strftime('%s','now') - 2000, '0x000dbb7923ce640cb52f55ec91be59a5680d8e96-0x1514000000000000000000000000000000000000', '2000000000000000000', '4000000000000000000', '0xdef', '800000000', '0'),\n('swap_3', 1003, strftime('%s','now') - 3000, '0x000ee8f233b41698839c788ac35569ed79028990-0x1514000000000000000000000000000000000000', '3000000000000000000', '5000000000000000000', '0xghi', '900000000', '0'),\n('swap_4', 1004, strftime('%s','now') - 4000, '0x000ee8f233b41698839c788ac35569ed79028990-0x1514000000000000000000000000000000000000', '4000000000000000000', '8000000000000000000', '0xjkl', '950000000', '0');\n"
+9 verbose logfile logs-max:10 dir:D:\piperxBackend\.npm-cache\_logs\2025-10-05T08_22_56_027Z-
+10 verbose logfile D:\piperxBackend\.npm-cache\_logs\2025-10-05T08_22_56_027Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 http fetch GET 200 https://registry.npmmirror.com/wrangler 1175ms (cache revalidated)
+14 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+15 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+16 verbose cwd D:\piperxBackend
+17 verbose os Windows_NT 10.0.19045
+18 verbose node v22.15.1
+19 verbose npm  v10.9.2
+20 verbose exit 1
+21 verbose code 1

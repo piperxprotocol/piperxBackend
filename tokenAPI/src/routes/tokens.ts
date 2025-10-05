@@ -71,6 +71,30 @@ export async function refreshActiveTokens(env: Env) {
 
   console.log("Active Tokens (filtered):", JSON.stringify(activeTokens, null, 2));
 
+  const tokenIds = activeTokens.map((t) => t.token_id.toLowerCase());
+  if (tokenIds.length) {
+    const placeholders = tokenIds.map(() => "?").join(",");
+    const metaSql = `
+      SELECT id, symbol, created_at
+      FROM tokens
+      WHERE lower(id) IN (${placeholders})
+    `;
+    const metaRows = await env.DB.prepare(metaSql).bind(...tokenIds).all<any>();
+    const metaMap: Record<string, any> = {};
+    for (const m of metaRows.results || []) {
+      metaMap[m.id.toLowerCase()] = {
+        symbol: m.symbol,
+        created_at: m.created_at,
+      };
+    }
+
+    activeTokens = activeTokens.map((t) => ({
+      ...t,
+      symbol: metaMap[t.token_id.toLowerCase()]?.symbol ?? null,
+      created_at: metaMap[t.token_id.toLowerCase()]?.created_at ?? null,
+    }));
+  }
+
   await env.PIPERX_PRO.put(
     "tokens:active",
     JSON.stringify({ updatedAt: Date.now(), tokens: activeTokens }),
