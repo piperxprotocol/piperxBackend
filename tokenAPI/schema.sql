@@ -15,9 +15,9 @@ CREATE TABLE tokens (
   id TEXT PRIMARY KEY,   -- token 地址
   name TEXT NOT NULL,
   symbol TEXT NOT NULL,
-  decimals INT NOT NULL
+  decimals INT NOT NULL,
+  created_at INTEGER    
 );
-
 CREATE TABLE prices (
   token_id TEXT NOT NULL,
   hour_bucket INTEGER NOT NULL, -- 小时桶

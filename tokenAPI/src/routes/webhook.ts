@@ -44,16 +44,23 @@ router.post("/webhook/tokens", async (c) => {
             }
 
             await c.env.DB.prepare(
-                `INSERT OR IGNORE INTO tokens (id, name, symbol, decimals)
-           VALUES (?1, ?2, ?3, ?4)`
-            ).bind(t.id, t.name, t.symbol, t.decimals).run()
+                `INSERT OR IGNORE INTO tokens (id, name, symbol, decimals, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)`
+            ).bind(
+                t.id,
+                t.name,
+                t.symbol,
+                t.decimals,
+                t.createdAt
+            ).run()
 
             records = records.filter(r => r.id !== t.id)
             records.unshift({
                 id: t.id,
                 name: t.name,
                 symbol: t.symbol,
-                decimals: t.decimals
+                decimals: t.decimals,
+                created_at: t.createdAt
             })
         }
 
