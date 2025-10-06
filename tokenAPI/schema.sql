@@ -10,7 +10,6 @@ CREATE TABLE swaps (
   amount_native TEXT             
 );
 
-
 CREATE TABLE tokens (
   id TEXT PRIMARY KEY,   
   name TEXT NOT NULL,
@@ -18,6 +17,7 @@ CREATE TABLE tokens (
   decimals INT NOT NULL,
   created_at INTEGER    
 );
+
 CREATE TABLE prices (
   token_id TEXT NOT NULL,
   hour_bucket INTEGER NOT NULL, 

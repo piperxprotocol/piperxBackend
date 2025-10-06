@@ -4,6 +4,8 @@ import type { Env } from "../utils/env"
 const router = new Hono<{ Bindings: Env }>()
 
 const VOLUME_THRESHOLD = 500000000;
+const subgraph_storyhunt =
+  "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
 export type TokenInfo = {
   id: string
@@ -36,40 +38,63 @@ async function getActiveTokensFromCache(env: Env): Promise<TokenInfo[]> {
 
 export async function refreshActiveTokens(env: Env) {
   const sql = `
-    WITH split_pairs AS (
-      SELECT
-        s.*,
-        substr(s.pair, 1, instr(s.pair, '-') - 1) AS token0_id,
-        substr(s.pair, instr(s.pair, '-') + 1) AS token1_id
-      FROM swaps s
-      WHERE s.timestamp > strftime('%s','now') - 48*3600
-    ),
-    union_tokens AS (
-      SELECT token0_id AS token_id, CAST(amount_usd AS REAL) AS usd FROM split_pairs
-      UNION ALL
-      SELECT token1_id AS token_id, CAST(amount_usd AS REAL) AS usd FROM split_pairs
-    )
-    SELECT
-      token_id,
-      SUM(usd) AS total_usd
-    FROM union_tokens
-    GROUP BY token_id
-    HAVING total_usd > 500000000
-    ORDER BY total_usd DESC;
-  `;
+    SELECT pair
+    FROM swaps
+    WHERE timestamp > strftime('%s','now') - 48*3600
+    GROUP BY pair
+    HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
+    ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
+  `
+  const { results } = await env.DB.prepare(sql).all<any>()
+  const pairs = results.map((r) => r.pair.toLowerCase())
+  console.log(`Found ${pairs.length} active pools`)
 
-  const rows = await env.DB.prepare(sql).all<any>();
-  let activeTokens = rows.results || [];
+  if (pairs.length === 0) {
+    console.log("No pools above 5e8 volume.")
+    return
+  }
 
-  console.log("Raw active tokens:", activeTokens);
+  const tokenSet = new Set<string>()
 
-  const exclude = [
-    "0x1514000000000000000000000000000000000000".toLowerCase(),
-    "0xF1815bd50389c46847f0Bda824eC8da914045D14".toLowerCase(),
-  ];
-  activeTokens = activeTokens.filter(t => !exclude.includes(t.token_id.toLowerCase()));
+  for (let i = 0; i < pairs.length; i += 1000) {
+    const batch = pairs.slice(i, i + 1000)
+    const query = `
+      {
+        tokenPairs(where: { id_in: [${batch.map((id) => `"${id}"`).join(",")}] }) {
+          id
+          token0 { id }
+          token1 { id }
+        }
+      }
+    `
+    try {
+      const res = await fetch(subgraph_storyhunt, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      })
 
-  console.log("Active Tokens (filtered):", JSON.stringify(activeTokens, null, 2));
+      const json = (await res.json()) as {
+        data?: { tokenPairs?: { token0: { id: string }; token1: { id: string } }[] }
+        errors?: any
+      }
+
+      if (json.data && json.data.tokenPairs) {
+        for (const pair of json.data.tokenPairs) {
+          tokenSet.add(pair.token0.id.toLowerCase())
+          tokenSet.add(pair.token1.id.toLowerCase())
+        }
+      } else if (json.errors) {
+        console.error("GraphQL error:", json.errors)
+      }
+    } catch (err) {
+      console.error("Fetch failed:", err)
+    }
+  }
+
+  let activeTokens = Array.from(tokenSet).map((id) => ({ token_id: id }))
+
+  console.log("Active Tokens:", JSON.stringify(activeTokens, null, 2));
 
   const tokenIds = activeTokens.map((t) => t.token_id.toLowerCase());
   if (tokenIds.length) {
