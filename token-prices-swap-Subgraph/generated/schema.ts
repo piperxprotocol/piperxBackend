@@ -248,30 +248,30 @@ export class TokenPrice extends Entity {
     return changetype<TokenPrice | null>(store.get("TokenPrice", id));
   }
 
-  get id(): string {
+  get id(): i64 {
     let value = this.get("id");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return 0;
     } else {
-      return value.toString();
+      return value.toI64();
     }
   }
 
-  set id(value: string) {
-    this.set("id", Value.fromString(value));
+  set id(value: i64) {
+    this.set("id", Value.fromI64(value));
   }
 
-  get timestamp(): BigInt {
+  get timestamp(): i64 {
     let value = this.get("timestamp");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return 0;
     } else {
-      return value.toBigInt();
+      return value.toTimestamp();
     }
   }
 
-  set timestamp(value: BigInt) {
-    this.set("timestamp", Value.fromBigInt(value));
+  set timestamp(value: i64) {
+    this.set("timestamp", Value.fromTimestamp(value));
   }
 
   get token(): string {
@@ -340,30 +340,30 @@ export class TokenSwap extends Entity {
     return changetype<TokenSwap | null>(store.get("TokenSwap", id));
   }
 
-  get id(): string {
+  get id(): i64 {
     let value = this.get("id");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return 0;
     } else {
-      return value.toString();
+      return value.toI64();
     }
   }
 
-  set id(value: string) {
-    this.set("id", Value.fromString(value));
+  set id(value: i64) {
+    this.set("id", Value.fromI64(value));
   }
 
-  get timestamp(): BigInt {
+  get timestamp(): i64 {
     let value = this.get("timestamp");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return 0;
     } else {
-      return value.toBigInt();
+      return value.toTimestamp();
     }
   }
 
-  set timestamp(value: BigInt) {
-    this.set("timestamp", Value.fromBigInt(value));
+  set timestamp(value: i64) {
+    this.set("timestamp", Value.fromTimestamp(value));
   }
 
   get pair(): string {
@@ -403,19 +403,6 @@ export class TokenSwap extends Entity {
 
   set token1Amount(value: BigInt) {
     this.set("token1Amount", Value.fromBigInt(value));
-  }
-
-  get zeroForOne(): boolean {
-    let value = this.get("zeroForOne");
-    if (!value || value.kind == ValueKind.NULL) {
-      return false;
-    } else {
-      return value.toBoolean();
-    }
-  }
-
-  set zeroForOne(value: boolean) {
-    this.set("zeroForOne", Value.fromBoolean(value));
   }
 
   get account(): string {

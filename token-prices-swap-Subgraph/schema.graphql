@@ -19,8 +19,8 @@ type Account @entity(immutable: false) {
 
 # --- Price timeseries ---
 type TokenPrice @entity(timeseries: true) {
-  id: ID!
-  timestamp: BigInt!
+  id: Int8!
+  timestamp: Timestamp!
   token: Token!
   priceUSD: BigInt!        
   priceNative: BigInt!     
@@ -28,12 +28,11 @@ type TokenPrice @entity(timeseries: true) {
 
 # --- Swap timeseries ---
 type TokenSwap @entity(timeseries: true) {
-  id: ID!
-  timestamp: BigInt!
+  id: Int8!
+  timestamp: Timestamp!
   pair: TokenPair!
   token0Amount: BigInt!    
-  token1Amount: BigInt!
-  zeroForOne: Boolean!     
+  token1Amount: BigInt!     
   account: Account!
   amountUSD: BigInt!       
   amountNative: BigInt!    

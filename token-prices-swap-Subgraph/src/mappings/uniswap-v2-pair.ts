@@ -36,22 +36,21 @@ export function handleV2Swap(event: Swap): void {
 
   const swapId = event.transaction.hash.toHex() + "-" + event.logIndex.toString();
   const swap = new TokenSwap(swapId);
-  swap.timestamp = event.block.timestamp;
+  swap.timestamp = event.block.timestamp.toI64();
   swap.pair = pair.id;
   swap.token0Amount = token0Amount;
   swap.token1Amount = token1Amount;
-  swap.zeroForOne = event.params.amount0In.gt(BigInt.zero());
   swap.save();
 
   const token0Price = new TokenPrice(swapId + "-0");
-  token0Price.timestamp = event.block.timestamp;
+  token0Price.timestamp = event.block.timestamp.toI64();
   token0Price.token = token0.id;
   token0Price.priceUSD = token0.latestPriceUSD;
   token0Price.priceNative = token0.latestPriceNative;
   token0Price.save();
 
   const token1Price = new TokenPrice(swapId + "-1");
-  token1Price.timestamp = event.block.timestamp;
+  token1Price.timestamp = event.block.timestamp.toI64();
   token1Price.token = token1.id;
   token1Price.priceUSD = token1.latestPriceUSD;
   token1Price.priceNative = token1.latestPriceNative;
