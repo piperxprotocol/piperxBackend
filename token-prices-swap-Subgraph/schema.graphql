@@ -1,0 +1,40 @@
+type Token @entity(immutable: false) {
+  id: ID!
+  symbol: String!
+  decimals: Int!
+  latestPriceUSD: BigInt!
+  latestPriceNative: BigInt!
+}
+
+type TokenPair @entity(immutable: false) {
+  id: ID!
+  token0: Token!
+  token1: Token!
+  pool: String!
+}
+
+type Account @entity(immutable: false) {
+  id: ID!
+}
+
+# --- Price timeseries ---
+type TokenPrice @entity(timeseries: true) {
+  id: ID!
+  timestamp: BigInt!
+  token: Token!
+  priceUSD: BigInt!        
+  priceNative: BigInt!     
+}
+
+# --- Swap timeseries ---
+type TokenSwap @entity(timeseries: true) {
+  id: ID!
+  timestamp: BigInt!
+  pair: TokenPair!
+  token0Amount: BigInt!    
+  token1Amount: BigInt!
+  zeroForOne: Boolean!     
+  account: Account!
+  amountUSD: BigInt!       
+  amountNative: BigInt!    
+}
