@@ -45,7 +45,7 @@ export async function refreshActiveTokens(env: Env) {
   HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
   ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
   `;
-  
+
   const { results } = await env.DB.prepare(sql).all<any>()
   const pairs = results.map((r) => r.pair.toLowerCase())
   console.log(`Found ${pairs.length} active pools`)
@@ -98,20 +98,26 @@ export async function refreshActiveTokens(env: Env) {
   console.log("Active Tokens:", JSON.stringify(activeTokens, null, 2));
 
   const tokenIds = activeTokens.map((t) => t.token_id.toLowerCase());
+  console.log(`tokenIds count = ${tokenIds.length}`);
+  const metaMap: Record<string, any> = {};
   if (tokenIds.length) {
-    const placeholders = tokenIds.map(() => "?").join(",");
-    const metaSql = `
-      SELECT id, symbol, created_at
-      FROM tokens
-      WHERE lower(id) IN (${placeholders})
-    `;
-    const metaRows = await env.DB.prepare(metaSql).bind(...tokenIds).all<any>();
-    const metaMap: Record<string, any> = {};
-    for (const m of metaRows.results || []) {
-      metaMap[m.id.toLowerCase()] = {
-        symbol: m.symbol,
-        created_at: m.created_at,
-      };
+    const BATCH_SIZE = 80;
+    for (let i = 0; i < tokenIds.length; i += BATCH_SIZE) {
+      const batch = tokenIds.slice(i, i + BATCH_SIZE);
+      const placeholders = batch.map(() => "?").join(",");
+      const metaSql = `
+        SELECT id, symbol, created_at
+        FROM tokens
+        WHERE id IN (${placeholders})
+      `;
+      const metaRows = await env.DB.prepare(metaSql).bind(...batch).all<any>();
+
+      for (const m of metaRows.results || []) {
+        metaMap[m.id.toLowerCase()] = {
+          symbol: m.symbol,
+          created_at: m.created_at,
+        };
+      }
     }
 
     activeTokens = activeTokens.map((t) => ({
