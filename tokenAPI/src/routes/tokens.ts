@@ -7,6 +7,10 @@ const VOLUME_THRESHOLD = 500000000;
 const subgraph_storyhunt =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
+const subgraph_piperx = 
+  "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.22/gn"
+
+
 export type TokenInfo = {
   id: string
   name: string
@@ -69,16 +73,25 @@ export async function refreshActiveTokens(env: Env) {
         }
       }
     `
-    try {
-      const res = await fetch(subgraph_storyhunt, {
+    
+    async function fetchSubgraph(url: string) {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query }),
-      })
+      });
+      return res.json() as Promise<{
+        data?: { tokenPairs?: { token0: { id: string }; token1: { id: string } }[] };
+        errors?: any;
+      }>;
+    }
 
-      const json = (await res.json()) as {
-        data?: { tokenPairs?: { token0: { id: string }; token1: { id: string } }[] }
-        errors?: any
+    try {
+      let json = await fetchSubgraph(subgraph_storyhunt);
+
+      if ((!json.data || !json.data.tokenPairs?.length) && !json.errors) {
+        console.warn("storyhunt did not find any results, tried using piperx");
+        json = await fetchSubgraph(subgraph_piperx);
       }
 
       if (json.data && json.data.tokenPairs) {
