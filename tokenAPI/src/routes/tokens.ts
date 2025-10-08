@@ -38,13 +38,14 @@ async function getActiveTokensFromCache(env: Env): Promise<TokenInfo[]> {
 
 export async function refreshActiveTokens(env: Env) {
   const sql = `
-    SELECT pair
-    FROM swaps
-    WHERE timestamp > strftime('%s','now') - 48*3600
-    GROUP BY pair
-    HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
-    ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
-  `
+  SELECT pair
+  FROM swaps
+  WHERE strftime('%s', timestamp) > strftime('%s','now') - 48*3600
+  GROUP BY pair
+  HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
+  ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
+  `;
+  
   const { results } = await env.DB.prepare(sql).all<any>()
   const pairs = results.map((r) => r.pair.toLowerCase())
   console.log(`Found ${pairs.length} active pools`)

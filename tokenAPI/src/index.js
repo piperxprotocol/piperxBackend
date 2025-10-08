@@ -11,7 +11,6 @@ app.route('/api/launchpad', webhookRouter);
 
 
 app.get("/debug/refresh", async (c) => {
-    console.log("11111")
     await refreshActiveTokens(c.env)
     return c.json({ ok: true })
 })

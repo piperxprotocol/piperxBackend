@@ -1,5 +1,5 @@
-import { BigInt, log } from "@graphprotocol/graph-ts";
-import { Token } from "../../generated/schema";
+import { BigInt, log, Address } from "@graphprotocol/graph-ts";
+import { Token, Account } from "../../generated/schema";
 import { IP_ADDRESS, PRICE_PRECISION, USDC_ADDRESS } from "./constants";
 
 /**
