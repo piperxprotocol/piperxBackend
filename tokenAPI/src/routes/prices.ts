@@ -59,13 +59,13 @@ router.get("/prices", async (c) => {
   try {
     // Fetch tokens created within last 48 hours from database
     const fortyEightHoursAgo = Math.floor(Date.now() / 1000) - (48 * 3600) // 48 hours ago in seconds
-    
+
     const recentTokensResult = await c.env.DB.prepare(
       `SELECT id, name, symbol, decimals, created_at
        FROM tokens 
        WHERE created_at >= ?`
     ).bind(fortyEightHoursAgo).all<any>()
-    
+
     const records: any[] = recentTokensResult.results || []
     const idsFromList: string[] = records.map((t: any) => t.id)
 
@@ -119,11 +119,12 @@ router.get("/prices", async (c) => {
 
     const history = buildHistory(nowHour, allRows, tokenIds, 48, nowMap)
     console.log("history >>>", history)
-    const metaMap: Record<string, { symbol: string; created_at: string | null }> = {}
+    const metaMap: Record<string, { symbol: string; created_at: string | null; decimals?: number }> = {};
     for (const rec of records) {
       metaMap[rec.id.toLowerCase()] = {
         symbol: rec.symbol || "-",
         created_at: rec.created_at || null,
+        decimals: rec.decimals ?? 18,
       }
     }
     for (const t of activeTokens) {
@@ -133,21 +134,40 @@ router.get("/prices", async (c) => {
         metaMap[id] = {
           symbol: t.symbol || "-",
           created_at: t.created_at || null,
+          decimals: t.decimals ?? 18,
         }
       }
     }
     console.log("metaMap >>>", metaMap)
     const result: Record<string, any> = {}
+
     for (const id of tokenIds) {
-      const meta = metaMap[id.toLowerCase()] || { symbol: "-", created_at: null }
+      const meta = metaMap[id.toLowerCase()] || { symbol: "-", created_at: null, decimals: 18 };
+      const decimals = meta.decimals ?? 18;
+
+      const decimalAdjustment = 18 - (decimals - 6);
+      const adjustPrice = (price: number | null | undefined) => {
+        if (price === null || price === undefined) return 0;
+        return Number(price) / (10 ** decimalAdjustment);
+      };
+
+      const adjustedNow = adjustPrice(nowMap[id] ?? 0);
+
+      const adjustedHistory: Record<string, number> = {};
+      const rawHist = history[id] || {};
+      for (const [key, val] of Object.entries(rawHist)) {
+        adjustedHistory[key] = adjustPrice(val as number);
+      }
+
       result[id] = {
         id,
         symbol: meta.symbol,
         created_at: meta.created_at,
-        now: nowMap[id] ?? 0,
-        history: history[id] || {},
+        now: adjustedNow,
+        history: adjustedHistory,
       }
     }
+
     console.log("result >>>", result)
     return c.json({ prices: result })
   } catch (err: any) {
