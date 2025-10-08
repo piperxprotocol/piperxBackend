@@ -40,7 +40,7 @@ export async function refreshActiveTokens(env: Env) {
   const sql = `
   SELECT pair
   FROM swaps
-  WHERE strftime('%s', timestamp) > strftime('%s','now') - 48*3600
+  WHERE timestamp > datetime('now', '-2 days')
   GROUP BY pair
   HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
   ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
@@ -49,6 +49,7 @@ export async function refreshActiveTokens(env: Env) {
   const { results } = await env.DB.prepare(sql).all<any>()
   const pairs = results.map((r) => r.pair.toLowerCase())
   console.log(`Found ${pairs.length} active pools`)
+  console.log(JSON.stringify(results, null, 2));
 
   if (pairs.length === 0) {
     console.log("No pools above 5e8 volume.")
