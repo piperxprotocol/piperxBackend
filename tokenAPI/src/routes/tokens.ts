@@ -120,7 +120,7 @@ export async function refreshActiveTokens(env: Env) {
       const batch = tokenIds.slice(i, i + BATCH_SIZE);
       const placeholders = batch.map(() => "?").join(",");
       const metaSql = `
-        SELECT id, symbol, decimals, created_at
+        SELECT id, name, symbol, decimals, created_at
         FROM tokens
         WHERE id IN (${placeholders})
       `;
@@ -128,6 +128,7 @@ export async function refreshActiveTokens(env: Env) {
 
       for (const m of metaRows.results || []) {
         metaMap[m.id.toLowerCase()] = {
+          name: m.name,
           symbol: m.symbol,
           decimals: m.decimals,
           created_at: m.created_at,
@@ -137,6 +138,7 @@ export async function refreshActiveTokens(env: Env) {
 
     activeTokens = activeTokens.map((t) => ({
       ...t,
+      name: metaMap[t.token_id.toLowerCase()]?.name ?? null,
       symbol: metaMap[t.token_id.toLowerCase()]?.symbol ?? null,
       decimals: metaMap[t.token_id.toLowerCase()]?.decimals ?? null,
       created_at: metaMap[t.token_id.toLowerCase()]?.created_at ?? null,
