@@ -119,10 +119,11 @@ router.get("/prices", async (c) => {
 
     const history = buildHistory(nowHour, allRows, tokenIds, 48, nowMap)
     console.log("history >>>", history)
-    const metaMap: Record<string, { symbol: string; created_at: string | null; decimals?: number }> = {};
+    const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number }> = {};
     for (const rec of records) {
       metaMap[rec.id.toLowerCase()] = {
-        symbol: rec.symbol || "-",
+        name: rec.name || "null",
+        symbol: rec.symbol || "null",
         created_at: rec.created_at || null,
         decimals: rec.decimals ?? 18,
       }
@@ -132,7 +133,8 @@ router.get("/prices", async (c) => {
       if (!id) continue
       if (!metaMap[id]) {
         metaMap[id] = {
-          symbol: t.symbol || "-",
+          name: t.name || null,
+          symbol: t.symbol || null,
           created_at: t.created_at || null,
           decimals: t.decimals ?? 18,
         }
@@ -142,7 +144,7 @@ router.get("/prices", async (c) => {
     const result: Record<string, any> = {}
 
     for (const id of tokenIds) {
-      const meta = metaMap[id.toLowerCase()] || { symbol: "-", created_at: null, decimals: 18 };
+      const meta = metaMap[id.toLowerCase()] || { name: null, symbol: null, created_at: null, decimals: 18 };
       const decimals = meta.decimals ?? 18;
 
       const decimalAdjustment = 18 - (decimals - 6);
@@ -161,7 +163,9 @@ router.get("/prices", async (c) => {
 
       result[id] = {
         id,
+        name: meta.name,
         symbol: meta.symbol,
+        decimals: meta.decimals,
         created_at: meta.created_at,
         now: adjustedNow,
         history: adjustedHistory,
@@ -169,7 +173,7 @@ router.get("/prices", async (c) => {
     }
 
     console.log("result >>>", result)
-    return c.json({ prices: result })
+    return c.json({ tokenInfo: result })
   } catch (err: any) {
     console.error("Error in /prices:", err)
     return c.json({ error: err.message }, 500)
