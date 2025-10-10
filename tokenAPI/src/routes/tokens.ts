@@ -7,7 +7,7 @@ const VOLUME_THRESHOLD = 500000000;
 const subgraph_storyhunt =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.23/gn"
 
-const subgraph_piperx = 
+const subgraph_piperx =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.22/gn"
 
 
@@ -40,6 +40,30 @@ async function getActiveTokensFromCache(env: Env): Promise<TokenInfo[]> {
   return parsed.tokens || []
 }
 
+function buildTokenPairsQuery(ids: string[]) {
+  return `
+    {
+      tokenPairs(where: { id_in: [${ids.map((id) => `"${id}"`).join(",")}] }) {
+        id
+        token0 { id }
+        token1 { id }
+      }
+    }
+  `;
+}
+
+async function fetchSubgraph(url: string, query: string) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  return res.json() as Promise<{
+    data?: { tokenPairs?: { token0: { id: string }; token1: { id: string } }[] };
+    errors?: any;
+  }>;
+}
+
 export async function refreshActiveTokens(env: Env) {
   const sql = `
   SELECT pair
@@ -64,44 +88,36 @@ export async function refreshActiveTokens(env: Env) {
 
   for (let i = 0; i < pairs.length; i += 1000) {
     const batch = pairs.slice(i, i + 1000)
-    const query = `
-      {
-        tokenPairs(where: { id_in: [${batch.map((id) => `"${id}"`).join(",")}] }) {
-          id
-          token0 { id }
-          token1 { id }
-        }
-      }
-    `
-
-    async function fetchSubgraph(url: string) {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      return res.json() as Promise<{
-        data?: { tokenPairs?: { token0: { id: string }; token1: { id: string } }[] };
-        errors?: any;
-      }>;
-    }
 
     try {
-      let json = await fetchSubgraph(subgraph_storyhunt);
+      const storyhuntQuery = buildTokenPairsQuery(batch);
+      let json = await fetchSubgraph(subgraph_storyhunt, storyhuntQuery);
+      console.log("storyhunt raw json:", JSON.stringify(json, null, 2));
 
-      if ((!json.data || !json.data.tokenPairs?.length) && !json.errors) {
-        console.warn("storyhunt did not find any results, tried using piperx");
-        json = await fetchSubgraph(subgraph_piperx);
+
+      const storyhuntPairs = json.data?.tokenPairs || [];
+      const foundIds = new Set(
+        storyhuntPairs.map((p) => ("id" in p ? (p as any).id.toLowerCase() : ""))
+      );
+      const missingIds = batch.filter((id) => !foundIds.has(id.toLowerCase()));
+
+      let allPairs = storyhuntPairs;
+
+      if (missingIds.length > 0) {
+        console.log("Missing IDs from Storyhunt:", JSON.stringify(missingIds, null, 2));
+        const piperxQuery = buildTokenPairsQuery(missingIds);
+        const Json = await fetchSubgraph(subgraph_piperx, piperxQuery);
+        const piperxPairs = Json.data?.tokenPairs || [];
+        allPairs = [...storyhuntPairs, ...piperxPairs];
+      }
+      
+      console.log(`✅ combined pairs: ${allPairs.length}`);
+
+      for (const pair of allPairs) {
+        tokenSet.add(pair.token0.id.toLowerCase());
+        tokenSet.add(pair.token1.id.toLowerCase());
       }
 
-      if (json.data && json.data.tokenPairs) {
-        for (const pair of json.data.tokenPairs) {
-          tokenSet.add(pair.token0.id.toLowerCase())
-          tokenSet.add(pair.token1.id.toLowerCase())
-        }
-      } else if (json.errors) {
-        console.error("GraphQL error:", json.errors)
-      }
     } catch (err) {
       console.error("Fetch failed:", err)
     }

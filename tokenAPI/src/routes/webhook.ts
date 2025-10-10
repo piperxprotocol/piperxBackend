@@ -86,8 +86,8 @@ router.post("/webhook/prices", async (c) => {
 
         for (const rec of records) {
             const tokenId = rec.token
-            const ts = Math.floor(new Date(rec.timestamp).getTime() / 1000) // 秒级
-            const hourBucket = Math.floor(ts / 3600) // 小时桶
+            const ts = Math.floor(new Date(rec.timestamp).getTime() / 1000) 
+            const hourBucket = Math.floor(ts / 3600) 
 
             try {
                 await c.env.DB.prepare(
