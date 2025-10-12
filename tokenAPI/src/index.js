@@ -8,7 +8,7 @@ const app = new Hono();
 
 // Add CORS middleware
 app.use('*', cors({
-  origin: ['http://localhost:3000', 'https://piperxprotocol.com', 'https://www.piperxprotocol.com'],
+  origin: ['http://localhost:3000', 'https://piperxprotocol.com', 'https://www.piperxprotocol.com', 'https://piperxmain-zhoulu.pages.dev/'],
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
