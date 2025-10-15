@@ -208,6 +208,16 @@ router.get("/prices", async (c) => {
 
       const volHist = volumeHistory[id] || {}
 
+      const activeInfo = activeTokens.find(
+        (t) => (t.token_id || t.id || "").toLowerCase() === id.toLowerCase()
+      );
+      const activePoolObj = activeInfo
+        ? {
+          pool: activeInfo.active_pool || null,
+          source: activeInfo.source || null,
+        }
+        : { pool: null, source: null };
+
       result[id] = {
         id,
         name: meta.name,
@@ -217,6 +227,7 @@ router.get("/prices", async (c) => {
         now: adjustedNow,
         history: adjustedHistory,
         volume: volHist,
+        active_pool: activePoolObj,
       }
     }
 
