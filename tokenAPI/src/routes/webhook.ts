@@ -143,7 +143,7 @@ router.post("/webhook/swaps", async (c) => {
                     )
                     .run()
 
-                console.log("Insert result:", result)
+                console.log("Insert successful:", result)
 
                 const hour_bucket = Math.floor(new Date(rec.timestamp).getTime() / 1000 / 3600)
 
@@ -168,13 +168,13 @@ router.post("/webhook/swaps", async (c) => {
                     .bind(rec.token0, ...params)
                     .run();
 
-                console.log(`token0 插入成功: ${rec.token0}`, res0);
+                console.log(`token0 Insert successful: ${rec.token0}`, res0);
 
                 const res1 = await c.env.DB.prepare(query)
                     .bind(rec.token1, ...params)
                     .run();
 
-                console.log(`token1 插入成功: ${rec.token1}`, res1);
+                console.log(`token1 Insert successful: ${rec.token1}`, res1);
 
             } catch (e) {
                 console.error("DB insert error for swap:", rec.id, e)
