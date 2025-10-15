@@ -86,8 +86,8 @@ router.post("/webhook/prices", async (c) => {
 
         for (const rec of records) {
             const tokenId = rec.token
-            const ts = Math.floor(new Date(rec.timestamp).getTime() / 1000) 
-            const hourBucket = Math.floor(ts / 3600) 
+            const ts = Math.floor(new Date(rec.timestamp).getTime() / 1000)
+            const hourBucket = Math.floor(ts / 3600)
 
             try {
                 await c.env.DB.prepare(
@@ -118,19 +118,51 @@ router.post("/webhook/swaps", async (c) => {
             try {
                 await c.env.DB.prepare(
                     `INSERT OR IGNORE INTO swaps
-             (id, vid, timestamp, pair, token_0_amount, token_1_amount, account, amount_usd, amount_native)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             (id, vid, timestamp, pair, token0, token1, token_0_amount, token_1_amount, account, amount_usd, amount_native, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                 ).bind(
                     rec.id,
                     rec.vid,
                     rec.timestamp,
                     rec.pair,
+                    rec.token0,
+                    rec.token1,
                     rec.token_0_amount?.toString() ?? null,
                     rec.token_1_amount?.toString() ?? null,
                     rec.account,
                     rec.amount_usd?.toString() ?? null,
-                    rec.amount_native?.toString() ?? null
+                    rec.amount_native?.toString() ?? null,
+                    rec.source ?? null
                 ).run()
+
+                const hour_bucket = Math.floor(new Date(rec.timestamp).getTime() / 1000 / 3600)
+
+                const params = [
+                    rec.pair,
+                    rec.source ?? "null",
+                    hour_bucket,
+                    rec.amount_usd ?? 0,
+                    rec.amount_native ?? 0,
+                ]
+
+                await c.env.DB.prepare(
+                    `INSERT INTO volume (token_id, pool, source, hour_bucket, volume_usd, volume_native)
+                     VALUES (?, ?, ?, ?, ?, ?)
+                     ON CONFLICT(token_id, pool, source, hour_bucket)
+                     DO UPDATE SET
+                       volume_usd = volume_usd + excluded.volume_usd,
+                       volume_native = volume_native + excluded.volume_native`
+                ).bind(rec.token_0, ...params).run()
+
+                await c.env.DB.prepare(
+                    `INSERT INTO volume (token_id, pool, source, hour_bucket, volume_usd, volume_native)
+                     VALUES (?, ?, ?, ?, ?, ?)
+                     ON CONFLICT(token_id, pool, source, hour_bucket)
+                     DO UPDATE SET
+                       volume_usd = volume_usd + excluded.volume_usd,
+                       volume_native = volume_native + excluded.volume_native`
+                ).bind(rec.token_1, ...params).run()
+
             } catch (e) {
                 console.error("DB insert error for swap:", rec.id, e)
             }

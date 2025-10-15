@@ -55,6 +55,31 @@ function buildHistory(
   return result
 }
 
+function buildVolumeHistory(
+  nowHour: number,
+  rows: any[],
+  tokenIds: string[],
+  points = 48
+) {
+  const raw: Record<string, Map<number, number>> = {}
+  for (const r of rows) {
+    if (!raw[r.token_id]) raw[r.token_id] = new Map()
+    raw[r.token_id].set(r.hour_bucket, r.volume_usd)
+  }
+
+  const result: Record<string, Record<string, number>> = {}
+  for (const tokenId of tokenIds) {
+    const map = raw[tokenId] || new Map()
+    const historyMap: Record<string, number> = {}
+    for (let i = 1; i <= points; i++) {
+      const bucket = nowHour - i
+      historyMap[`${i}h`] = map.get(bucket) ?? 0
+    }
+    result[tokenId] = historyMap
+  }
+  return result
+}
+
 router.get("/prices", async (c) => {
   try {
     // Fetch tokens created within last 48 hours from database
@@ -95,14 +120,30 @@ router.get("/prices", async (c) => {
 
     const nowHour = Math.floor(Date.now() / 3600_000)
     console.log("nowHour >>>", nowHour)
+    const placeholders = tokenIds.map(() => '?').join(', ')
     const rows = await c.env.DB.prepare(
       `SELECT token_id, price_usd, hour_bucket
        FROM prices
        WHERE hour_bucket <= ?1 AND hour_bucket > ?1 - 48
+       AND token_id IN (${placeholders})
        ORDER BY hour_bucket ASC`
-    ).bind(nowHour).all<any>()
+    ).bind(nowHour, ...tokenIds).all<any>()
 
     const allRows = rows.results || []
+
+    const volumeQuery = `
+    SELECT token_id, hour_bucket, SUM(volume_usd) AS volume_usd
+    FROM volume
+    WHERE hour_bucket <= ?1
+      AND hour_bucket > ?1 - 48
+      AND token_id IN (${placeholders})
+    GROUP BY token_id, hour_bucket
+    ORDER BY hour_bucket ASC
+  `
+    const volumeRows = await c.env.DB.prepare(volumeQuery)
+      .bind(nowHour, ...tokenIds)
+      .all<any>()
+    const allVolumeRows = volumeRows.results || []
 
     const nowMap: Record<string, number> = {}
     for (const row of allRows) {
@@ -113,11 +154,15 @@ router.get("/prices", async (c) => {
         nowMap[id] = { bucket, price } as any
       }
     }
+
     for (const key in nowMap) {
       nowMap[key] = (nowMap[key] as any).price
     }
 
     const history = buildHistory(nowHour, allRows, tokenIds, 48, nowMap)
+
+    const volumeHistory = buildVolumeHistory(nowHour, allVolumeRows, tokenIds)
+
     console.log("history >>>", history)
     const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number }> = {};
     for (const rec of records) {
@@ -161,6 +206,8 @@ router.get("/prices", async (c) => {
         adjustedHistory[key] = adjustPrice(val as number);
       }
 
+      const volHist = volumeHistory[id] || {}
+
       result[id] = {
         id,
         name: meta.name,
@@ -169,6 +216,7 @@ router.get("/prices", async (c) => {
         created_at: meta.created_at,
         now: adjustedNow,
         history: adjustedHistory,
+        volume: volHist,
       }
     }
 
