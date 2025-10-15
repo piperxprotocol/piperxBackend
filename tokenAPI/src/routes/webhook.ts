@@ -119,6 +119,8 @@ router.post("/webhook/swaps", async (c) => {
                 token0: raw.token_0, 
                 token1: raw.token_1,  
               };
+
+            console.log(rec)
             try {
                 const result = await c.env.DB.prepare(
                     `INSERT OR IGNORE INTO swaps
@@ -136,8 +138,8 @@ router.post("/webhook/swaps", async (c) => {
                         rec.account,
                         rec.amount_usd?.toString() ?? null,
                         rec.amount_native?.toString() ?? null,
-                        rec.token0?.toLowerCase() ?? null,
-                        rec.token1?.toLowerCase() ?? null,
+                        rec.token0 ?? null,
+                        rec.token1 ?? null,
                         rec.source ?? null
                     )
                     .run()
@@ -161,7 +163,7 @@ router.post("/webhook/swaps", async (c) => {
                      DO UPDATE SET
                        volume_usd = volume_usd + excluded.volume_usd,
                        volume_native = volume_native + excluded.volume_native`
-                ).bind(rec.token_0, ...params).run()
+                ).bind(rec.token0, ...params).run()
 
                 await c.env.DB.prepare(
                     `INSERT INTO volume (token_id, pool, source, hour_bucket, volume_usd, volume_native)
@@ -170,7 +172,7 @@ router.post("/webhook/swaps", async (c) => {
                      DO UPDATE SET
                        volume_usd = volume_usd + excluded.volume_usd,
                        volume_native = volume_native + excluded.volume_native`
-                ).bind(rec.token_1, ...params).run()
+                ).bind(rec.token1, ...params).run()
 
             } catch (e) {
                 console.error("DB insert error for swap:", rec.id, e)
