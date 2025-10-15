@@ -64,111 +64,115 @@ async function fetchSubgraph(url: string, query: string) {
   }>;
 }
 
-export async function refreshActiveTokens(env: Env) {
-  const sql = `
-  SELECT pair
-  FROM swaps
-  WHERE timestamp > datetime('now', '-2 days')
-  GROUP BY pair
-  HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
-  ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
-  `;
+// export async function refreshActiveTokens(env: Env) {
+//   const sql = `
+//   SELECT pair
+//   FROM swaps
+//   WHERE timestamp > datetime('now', '-2 days')
+//   GROUP BY pair
+//   HAVING SUM(CAST(amount_usd AS REAL)) > 5e8
+//   ORDER BY SUM(CAST(amount_usd AS REAL)) DESC;
+//   `;
 
-  const { results } = await env.DB.prepare(sql).all<any>()
-  const pairs = results.map((r) => r.pair.toLowerCase())
-  console.log(`Found ${pairs.length} active pools`)
-  console.log(JSON.stringify(results, null, 2));
+//   const { results } = await env.DB.prepare(sql).all<any>()
+//   const pairs = results.map((r) => r.pair.toLowerCase())
+//   console.log(`Found ${pairs.length} active pools`)
+//   console.log(JSON.stringify(results, null, 2));
 
-  if (pairs.length === 0) {
-    console.log("No pools above 5e8 volume.")
-    return
-  }
+//   if (pairs.length === 0) {
+//     console.log("No pools above 5e8 volume.")
+//     return
+//   }
 
-  const tokenSet = new Set<string>()
+//   const tokenSet = new Set<string>()
 
-  for (let i = 0; i < pairs.length; i += 1000) {
-    const batch = pairs.slice(i, i + 1000)
+//   for (let i = 0; i < pairs.length; i += 1000) {
+//     const batch = pairs.slice(i, i + 1000)
 
-    try {
-      const storyhuntQuery = buildTokenPairsQuery(batch);
-      let json = await fetchSubgraph(subgraph_storyhunt, storyhuntQuery);
-      console.log("storyhunt raw json:", JSON.stringify(json, null, 2));
+//     try {
+//       const storyhuntQuery = buildTokenPairsQuery(batch);
+//       let json = await fetchSubgraph(subgraph_storyhunt, storyhuntQuery);
+//       console.log("storyhunt raw json:", JSON.stringify(json, null, 2));
 
 
-      const storyhuntPairs = json.data?.tokenPairs || [];
-      const foundIds = new Set(
-        storyhuntPairs.map((p) => ("id" in p ? (p as any).id.toLowerCase() : ""))
-      );
-      const missingIds = batch.filter((id) => !foundIds.has(id.toLowerCase()));
+//       const storyhuntPairs = json.data?.tokenPairs || [];
+//       const foundIds = new Set(
+//         storyhuntPairs.map((p) => ("id" in p ? (p as any).id.toLowerCase() : ""))
+//       );
+//       const missingIds = batch.filter((id) => !foundIds.has(id.toLowerCase()));
 
-      let allPairs = storyhuntPairs;
+//       let allPairs = storyhuntPairs;
 
-      if (missingIds.length > 0) {
-        console.log("Missing IDs from Storyhunt:", JSON.stringify(missingIds, null, 2));
-        const piperxQuery = buildTokenPairsQuery(missingIds);
-        const Json = await fetchSubgraph(subgraph_piperx, piperxQuery);
-        const piperxPairs = Json.data?.tokenPairs || [];
-        allPairs = [...storyhuntPairs, ...piperxPairs];
-      }
+//       if (missingIds.length > 0) {
+//         console.log("Missing IDs from Storyhunt:", JSON.stringify(missingIds, null, 2));
+//         const piperxQuery = buildTokenPairsQuery(missingIds);
+//         const Json = await fetchSubgraph(subgraph_piperx, piperxQuery);
+//         const piperxPairs = Json.data?.tokenPairs || [];
+//         allPairs = [...storyhuntPairs, ...piperxPairs];
+//       }
       
-      console.log(`✅ combined pairs: ${allPairs.length}`);
+//       console.log(`✅ combined pairs: ${allPairs.length}`);
 
-      for (const pair of allPairs) {
-        tokenSet.add(pair.token0.id.toLowerCase());
-        tokenSet.add(pair.token1.id.toLowerCase());
-      }
+//       for (const pair of allPairs) {
+//         tokenSet.add(pair.token0.id.toLowerCase());
+//         tokenSet.add(pair.token1.id.toLowerCase());
+//       }
 
-    } catch (err) {
-      console.error("Fetch failed:", err)
-    }
-  }
+//     } catch (err) {
+//       console.error("Fetch failed:", err)
+//     }
+//   }
 
-  let activeTokens = Array.from(tokenSet).map((id) => ({ token_id: id }))
+//   let activeTokens = Array.from(tokenSet).map((id) => ({ token_id: id }))
 
-  console.log("Active Tokens:", JSON.stringify(activeTokens, null, 2));
+//   console.log("Active Tokens:", JSON.stringify(activeTokens, null, 2));
 
-  const tokenIds = activeTokens.map((t) => t.token_id.toLowerCase());
-  console.log(`tokenIds count = ${tokenIds.length}`);
-  const metaMap: Record<string, any> = {};
-  if (tokenIds.length) {
-    const BATCH_SIZE = 80;
-    for (let i = 0; i < tokenIds.length; i += BATCH_SIZE) {
-      const batch = tokenIds.slice(i, i + BATCH_SIZE);
-      const placeholders = batch.map(() => "?").join(",");
-      const metaSql = `
-        SELECT id, name, symbol, decimals, created_at
-        FROM tokens
-        WHERE id IN (${placeholders})
-      `;
-      const metaRows = await env.DB.prepare(metaSql).bind(...batch).all<any>();
+//   const tokenIds = activeTokens.map((t) => t.token_id.toLowerCase());
+//   console.log(`tokenIds count = ${tokenIds.length}`);
+//   const metaMap: Record<string, any> = {};
+//   if (tokenIds.length) {
+//     const BATCH_SIZE = 80;
+//     for (let i = 0; i < tokenIds.length; i += BATCH_SIZE) {
+//       const batch = tokenIds.slice(i, i + BATCH_SIZE);
+//       const placeholders = batch.map(() => "?").join(",");
+//       const metaSql = `
+//         SELECT id, name, symbol, decimals, created_at
+//         FROM tokens
+//         WHERE id IN (${placeholders})
+//       `;
+//       const metaRows = await env.DB.prepare(metaSql).bind(...batch).all<any>();
 
-      for (const m of metaRows.results || []) {
-        metaMap[m.id.toLowerCase()] = {
-          name: m.name,
-          symbol: m.symbol,
-          decimals: m.decimals,
-          created_at: m.created_at,
-        };
-      }
-    }
+//       for (const m of metaRows.results || []) {
+//         metaMap[m.id.toLowerCase()] = {
+//           name: m.name,
+//           symbol: m.symbol,
+//           decimals: m.decimals,
+//           created_at: m.created_at,
+//         };
+//       }
+//     }
 
-    activeTokens = activeTokens.map((t) => ({
-      ...t,
-      name: metaMap[t.token_id.toLowerCase()]?.name ?? null,
-      symbol: metaMap[t.token_id.toLowerCase()]?.symbol ?? null,
-      decimals: metaMap[t.token_id.toLowerCase()]?.decimals ?? null,
-      created_at: metaMap[t.token_id.toLowerCase()]?.created_at ?? null,
-    }));
-  }
+//     activeTokens = activeTokens.map((t) => ({
+//       ...t,
+//       name: metaMap[t.token_id.toLowerCase()]?.name ?? null,
+//       symbol: metaMap[t.token_id.toLowerCase()]?.symbol ?? null,
+//       decimals: metaMap[t.token_id.toLowerCase()]?.decimals ?? null,
+//       created_at: metaMap[t.token_id.toLowerCase()]?.created_at ?? null,
+//     }));
+//   }
 
-  await env.PIPERX_PRO.put(
-    "tokens:active",
-    JSON.stringify({ updatedAt: Date.now(), tokens: activeTokens }),
-    { expirationTtl: 3600 }
-  );
+//   await env.PIPERX_PRO.put(
+//     "tokens:active",
+//     JSON.stringify({ updatedAt: Date.now(), tokens: activeTokens }),
+//     { expirationTtl: 3600 }
+//   );
 
-  console.log(`refreshed active tokens: ${activeTokens.length}`);
-}
+//   console.log(`refreshed active tokens: ${activeTokens.length}`);
+// }
+
+
+
+
 
 
 router.get("/tokens", async (c) => {

@@ -118,21 +118,21 @@ router.post("/webhook/swaps", async (c) => {
             try {
                 await c.env.DB.prepare(
                     `INSERT OR IGNORE INTO swaps
-             (id, vid, timestamp, pair, token0, token1, token_0_amount, token_1_amount, account, amount_usd, amount_native, source)
+             (id, vid, timestamp, pair, token_0_amount, token_1_amount, account, amount_usd, amount_native, token0, token1, source)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                 ).bind(
                     rec.id,
                     rec.vid,
                     rec.timestamp,
                     rec.pair,
-                    rec.token_0,
-                    rec.token_1,
                     rec.token_0_amount?.toString() ?? null,
                     rec.token_1_amount?.toString() ?? null,
                     rec.account,
                     rec.amount_usd?.toString() ?? null,
                     rec.amount_native?.toString() ?? null,
-                    rec.source ?? null
+                    rec.token_0?.toLowerCase() ?? null,                         
+                    rec.token_1?.toLowerCase() ?? null,                         
+                    rec.source ?? null                                          
                 ).run()
 
                 const hour_bucket = Math.floor(new Date(rec.timestamp).getTime() / 1000 / 3600)
