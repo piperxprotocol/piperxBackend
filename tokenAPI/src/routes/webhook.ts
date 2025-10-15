@@ -116,11 +116,10 @@ router.post("/webhook/swaps", async (c) => {
         for (const raw of records) {
             const rec = {
                 ...raw,
-                token0: raw.token_0, 
-                token1: raw.token_1,  
-              };
+                token0: raw.token_0,
+                token1: raw.token_1,
+            };
 
-            console.log(rec)
             try {
                 const result = await c.env.DB.prepare(
                     `INSERT OR IGNORE INTO swaps
@@ -156,23 +155,26 @@ router.post("/webhook/swaps", async (c) => {
                     rec.amount_native ?? 0,
                 ]
 
-                await c.env.DB.prepare(
-                    `INSERT INTO volume (token_id, pool, source, hour_bucket, volume_usd, volume_native)
-                     VALUES (?, ?, ?, ?, ?, ?)
-                     ON CONFLICT(token_id, pool, source, hour_bucket)
-                     DO UPDATE SET
-                       volume_usd = volume_usd + excluded.volume_usd,
-                       volume_native = volume_native + excluded.volume_native`
-                ).bind(rec.token0, ...params).run()
+                const query = `
+                INSERT INTO volume (token_id, pool, source, hour_bucket, volume_usd, volume_native)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(token_id, pool, source, hour_bucket)
+                DO UPDATE SET
+                  volume_usd = volume_usd + excluded.volume_usd,
+                  volume_native = volume_native + excluded.volume_native
+              `;
 
-                await c.env.DB.prepare(
-                    `INSERT INTO volume (token_id, pool, source, hour_bucket, volume_usd, volume_native)
-                     VALUES (?, ?, ?, ?, ?, ?)
-                     ON CONFLICT(token_id, pool, source, hour_bucket)
-                     DO UPDATE SET
-                       volume_usd = volume_usd + excluded.volume_usd,
-                       volume_native = volume_native + excluded.volume_native`
-                ).bind(rec.token1, ...params).run()
+                const res0 = await c.env.DB.prepare(query)
+                    .bind(rec.token0, ...params)
+                    .run();
+
+                console.log(`token0 插入成功: ${rec.token0}`, res0);
+
+                const res1 = await c.env.DB.prepare(query)
+                    .bind(rec.token1, ...params)
+                    .run();
+
+                console.log(`token1 插入成功: ${rec.token1}`, res1);
 
             } catch (e) {
                 console.error("DB insert error for swap:", rec.id, e)
