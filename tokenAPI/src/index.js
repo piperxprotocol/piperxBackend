@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import tokensRouter, { refreshActiveTokens } from './routes/tokens';
-import pricesRouter from './routes/prices';
+import tokeninfoRouter from './routes/tokeninfo';
 import webhookRouter from './routes/webhook';
 
 const app = new Hono();
@@ -14,7 +14,7 @@ app.use('*', cors({
 }));
 
 app.route('/api/launchpad', tokensRouter)
-app.route('/api/launchpad', pricesRouter)
+app.route('/api/launchpad', tokeninfoRouter)
 app.route('/api/launchpad', webhookRouter);
 
 

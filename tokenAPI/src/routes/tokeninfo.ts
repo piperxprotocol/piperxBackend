@@ -80,7 +80,7 @@ function buildVolumeHistory(
   return result
 }
 
-router.get("/prices", async (c) => {
+router.get("/tokeninfo", async (c) => {
   try {
     // Fetch tokens created within last 48 hours from database
     const fortyEightHoursAgo = Math.floor(Date.now() / 1000) - (48 * 3600) // 48 hours ago in seconds
