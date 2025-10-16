@@ -164,6 +164,14 @@ router.post("/webhook/swaps", async (c) => {
                   volume_native = volume_native + excluded.volume_native
               `;
 
+                console.log("🟢 Volume insert params:", {
+                    token0: rec.token0,
+                    token1: rec.token1,
+                    pool: rec.pair,
+                    source: rec.source
+                });
+
+
                 const res0 = await c.env.DB.prepare(query)
                     .bind(rec.token0, ...params)
                     .run();
