@@ -3,7 +3,14 @@ import { ERC20 } from "../../generated/UniswapV3Factory/ERC20"
 import { Token } from "../../generated/schema"
 import { log, Address, BigInt } from "@graphprotocol/graph-ts"
 
-function loadOrCreateToken(address: Address, timestamp: BigInt): void {
+function getSource(factory: Address): string {
+  const addr = factory.toHexString().toLowerCase()
+  if (addr == "0xb8c21e89983b5eccd841846ea294c4c8a89718f1") return "piperx"
+  if (addr == "0xa111ddbe973094f949d78ad755cd560f8737b7e2") return "storyhunt"
+  return "unknown"
+}
+
+function loadOrCreateToken(address: Address, timestamp: BigInt, source: string, pool: string): void {
   let id = address.toHexString()
   let token = Token.load(id)
   if (token != null) return
@@ -19,12 +26,16 @@ function loadOrCreateToken(address: Address, timestamp: BigInt): void {
   token.decimals = decimalsResult.reverted ? 18 : decimalsResult.value
   token.creator = "factory"
   token.createdAt = timestamp
+  token.source = source
+  token.pool = pool
   token.save()
 
   log.info("✅ New token created: {} ({})", [token.symbol, token.id])
 }
 
 export function handlePoolCreated(event: PoolCreated): void {
-  loadOrCreateToken(event.params.token0, event.block.timestamp)
-  loadOrCreateToken(event.params.token1, event.block.timestamp)
+  const source = getSource(event.address)
+  const pool = event.params.pool.toHexString()
+  loadOrCreateToken(event.params.token0, event.block.timestamp, source, pool)
+  loadOrCreateToken(event.params.token1, event.block.timestamp, source, pool)
 }

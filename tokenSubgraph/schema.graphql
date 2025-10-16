@@ -5,4 +5,6 @@ type Token @entity(immutable: false) {
   decimals: Int!
   creator: String!
   createdAt: BigInt!
+  pool: String! 
+  source: String!        
 }
