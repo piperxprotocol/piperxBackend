@@ -37,12 +37,6 @@ router.post("/webhook/tokens", async (c) => {
                 continue
             }
 
-            // const exists = records.some((r) => r.id === t.id);
-            // if (exists) {
-            //     console.log(`Token already exists in KV, skip: ${t.symbol} (${t.id})`);
-            //     continue;
-            // }
-
             await c.env.DB.prepare(`
                 INSERT INTO tokens (id, name, symbol, decimals, created_at, pool, source)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)

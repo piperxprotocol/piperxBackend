@@ -86,7 +86,7 @@ router.get("/prices", async (c) => {
     const fortyEightHoursAgo = Math.floor(Date.now() / 1000) - (48 * 3600) // 48 hours ago in seconds
 
     const recentTokensResult = await c.env.DB.prepare(
-      `SELECT id, name, symbol, decimals, created_at
+      `SELECT id, name, symbol, decimals, created_at, pool, source
        FROM tokens 
        WHERE created_at >= ?`
     ).bind(fortyEightHoursAgo).all<any>()
@@ -164,13 +164,15 @@ router.get("/prices", async (c) => {
     const volumeHistory = buildVolumeHistory(nowHour, allVolumeRows, tokenIds)
 
     console.log("history >>>", history)
-    const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number }> = {};
+    const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number;  pool?: string | null; source?: string | null; }> = {};
     for (const rec of records) {
       metaMap[rec.id.toLowerCase()] = {
         name: rec.name || "null",
         symbol: rec.symbol || "null",
         created_at: rec.created_at || null,
         decimals: rec.decimals ?? 18,
+        pool: rec.pool,
+        source: rec.source,
       }
     }
     for (const t of activeTokens) {
@@ -216,7 +218,10 @@ router.get("/prices", async (c) => {
           pool: activeInfo.active_pool || null,
           source: activeInfo.source || null,
         }
-        : { pool: null, source: null };
+        : {
+          pool: meta.pool || null,
+          source: meta.source || null,
+        };
 
       result[id] = {
         id,
