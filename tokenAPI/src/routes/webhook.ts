@@ -37,31 +37,50 @@ router.post("/webhook/tokens", async (c) => {
                 continue
             }
 
-            const exists = records.some((r) => r.id === t.id);
-            if (exists) {
-                console.log(`Token already exists in KV, skip: ${t.symbol} (${t.id})`);
-                continue;
-            }
+            // const exists = records.some((r) => r.id === t.id);
+            // if (exists) {
+            //     console.log(`Token already exists in KV, skip: ${t.symbol} (${t.id})`);
+            //     continue;
+            // }
 
-            await c.env.DB.prepare(
-                `INSERT OR IGNORE INTO tokens (id, name, symbol, decimals, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)`
-            ).bind(
+            await c.env.DB.prepare(`
+                INSERT INTO tokens (id, name, symbol, decimals, created_at, pool, source)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                ON CONFLICT(id) DO UPDATE SET
+                  name = excluded.name,
+                  symbol = excluded.symbol,
+                  decimals = excluded.decimals,
+                  created_at = excluded.created_at,
+                  pool = excluded.pool,
+                  source = excluded.source
+              `).bind(
                 t.id,
                 t.name,
                 t.symbol,
                 t.decimals,
-                t.created_at
+                t.created_at,
+                t.pool,
+                t.source
             ).run()
 
-            records = records.filter(r => r.id !== t.id)
-            records.unshift({
+            const idx = records.findIndex((r) => r.id === t.id);
+            const recordData = {
                 id: t.id,
-                name: t.name,
-                symbol: t.symbol,
-                decimals: t.decimals,
-                created_at: t.created_at
-            })
+                name: t.name ?? "Unknown",
+                symbol: t.symbol ?? "UNK",
+                decimals: t.decimals ?? 18,
+                created_at: t.created_at ?? Date.now(),
+                pool: t.pool ?? null,
+                source: t.source ?? null,
+            };
+
+            if (idx !== -1) {
+                records[idx] = recordData;
+                console.log(`Updated token in KV: ${t.symbol} (${t.id})`);
+            } else {
+                records.unshift(recordData);
+                console.log(`Added new token to KV: ${t.symbol} (${t.id})`);
+            }
         }
 
         try {
