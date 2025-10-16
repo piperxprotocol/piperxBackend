@@ -143,8 +143,6 @@ router.get("/prices", async (c) => {
     const volumeRows = await c.env.DB.prepare(volumeQuery)
       .bind(nowHour, ...tokenIds)
       .all<any>()
-
-      
     const allVolumeRows = volumeRows.results || []
 
     const nowMap: Record<string, number> = {}
