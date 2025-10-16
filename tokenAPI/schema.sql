@@ -18,7 +18,9 @@ CREATE TABLE tokens (
   name TEXT NOT NULL,
   symbol TEXT NOT NULL,
   decimals INT NOT NULL,
-  created_at INTEGER    
+  created_at INTEGER,
+  pool TEXT NOT NULL,              
+  source TEXT NOT NULL 
 );
 
 CREATE TABLE prices (
