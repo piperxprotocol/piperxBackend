@@ -124,7 +124,7 @@ router.get("/tokeninfo", async (c) => {
     const rows = await c.env.DB.prepare(
       `SELECT token_id, price_usd, hour_bucket
        FROM prices
-       WHERE hour_bucket <= ?1 AND hour_bucket > ?1 - 48
+       WHERE hour_bucket <= ?1 AND hour_bucket >= ?1 - 48
        AND token_id IN (${placeholders})
        ORDER BY hour_bucket ASC`
     ).bind(nowHour, ...tokenIds).all<any>()
@@ -135,7 +135,7 @@ router.get("/tokeninfo", async (c) => {
     SELECT token_id, hour_bucket, SUM(volume_usd) AS volume_usd
     FROM volume
     WHERE hour_bucket <= ?1
-      AND hour_bucket > ?1 - 48
+      AND hour_bucket >= ?1 - 48
       AND token_id IN (${placeholders})
     GROUP BY token_id, hour_bucket
     ORDER BY hour_bucket ASC
