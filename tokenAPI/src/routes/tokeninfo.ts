@@ -164,7 +164,7 @@ router.get("/tokeninfo", async (c) => {
     const volumeHistory = buildVolumeHistory(nowHour, allVolumeRows, tokenIds)
 
     console.log("history >>>", history)
-    const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number;  pool?: string | null; source?: string | null; }> = {};
+    const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number; pool?: string | null; source?: string | null; }> = {};
     for (const rec of records) {
       metaMap[rec.id.toLowerCase()] = {
         name: rec.name || "null",
@@ -208,7 +208,10 @@ router.get("/tokeninfo", async (c) => {
         adjustedHistory[key] = adjustPrice(val as number);
       }
 
-      const volHist = volumeHistory[id] || {}
+      const volHist = {}
+      for (const [key, val] of Object.entries(volumeHistory[id] || {})) {
+        volHist[key] = Number(val) / 1e6
+      }
 
       const activeInfo = activeTokens.find(
         (t) => (t.token_id || t.id || "").toLowerCase() === id.toLowerCase()
