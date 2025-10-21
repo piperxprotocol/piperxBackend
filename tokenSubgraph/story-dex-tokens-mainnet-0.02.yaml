@@ -1,0 +1,41 @@
+name: story-dex-tokens-mainnet-v2-pipeline
+resource_size: s
+apiVersion: 3
+
+sources:
+  token_source:
+    type: subgraph_entity
+    subgraphs:
+      - name: story-dex-tokens-mainnet-new
+        version: 0.0.2
+    name: token
+
+  holder_source:
+    type: subgraph_entity
+    subgraphs:
+      - name: story-dex-tokens-mainnet-new
+        version: 0.0.2
+    name: holder
+
+transforms: {}
+
+sinks:
+  sink_token:
+    url: https://piperxpro.piperxprotocol.workers.dev/api/launchpad/webhook/tokens
+    type: webhook
+    batch_size: 1
+    secret_name: WEBHOOK_SECRET_CM86IXFA80
+    one_row_per_request: false
+    from: token_source
+    batch_flush_interval: 3s
+
+  sink_holder:
+    url: https://piperxpro.piperxprotocol.workers.dev/api/launchpad/webhook/tokens
+    type: webhook
+    batch_size: 1
+    secret_name: WEBHOOK_SECRET_CM86IXFA80
+    one_row_per_request: false
+    from: holder_source
+    batch_flush_interval: 3s
+
+use_dedicated_ip: false

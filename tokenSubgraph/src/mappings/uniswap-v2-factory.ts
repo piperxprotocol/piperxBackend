@@ -2,6 +2,7 @@ import { PairCreated } from "../../generated/UniswapV2Factory/UniswapV2Factory"
 import { ERC20 } from "../../generated/UniswapV2Factory/ERC20"
 import { Token } from "../../generated/schema"
 import { log, Address, BigInt } from "@graphprotocol/graph-ts"
+import { TokenTemplate } from "../../generated/templates" 
 
 function loadOrCreateToken(address: Address, timestamp: BigInt,  source: string, pool: string): void {
   let id = address.toHexString()
@@ -22,6 +23,8 @@ function loadOrCreateToken(address: Address, timestamp: BigInt,  source: string,
   token.source = source
   token.pool = pool
   token.save()
+
+  TokenTemplate.create(address)
 
   log.info("✅ New token created: {} ({})", [token.symbol, token.id])
 }

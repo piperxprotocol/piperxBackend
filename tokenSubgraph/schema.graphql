@@ -8,3 +8,15 @@ type Token @entity(immutable: false) {
   pool: String! 
   source: String!        
 }
+
+type HolderBalance @entity {
+  id: ID!             
+  token: Bytes!
+  address: Bytes!
+  balance: BigDecimal!
+}
+
+type Holder @entity {
+  id: ID!              
+  holderCount: BigInt!
+}
