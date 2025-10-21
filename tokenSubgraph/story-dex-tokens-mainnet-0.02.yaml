@@ -30,7 +30,7 @@ sinks:
     batch_flush_interval: 3s
 
   sink_holder:
-    url: https://piperxpro.piperxprotocol.workers.dev/api/launchpad/webhook/tokens
+    url: https://piperxpro.piperxprotocol.workers.dev/api/launchpad/webhook/holders
     type: webhook
     batch_size: 1
     secret_name: WEBHOOK_SECRET_CM86IXFA80

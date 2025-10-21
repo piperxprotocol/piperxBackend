@@ -20,7 +20,8 @@ CREATE TABLE tokens (
   decimals INT NOT NULL,
   created_at INTEGER,
   pool TEXT NOT NULL,              
-  source TEXT NOT NULL 
+  source TEXT NOT NULL,
+  holder_count INTEGER DEFAULT 0
 );
 
 CREATE TABLE prices (
