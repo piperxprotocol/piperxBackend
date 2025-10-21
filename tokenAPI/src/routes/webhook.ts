@@ -211,31 +211,32 @@ router.post("/webhook/swaps", async (c) => {
 
 router.post("/webhook/holders", async (c) => {
     try {
-        const body = await c.req.json<any>();
-        console.log("Webhook /holders raw body:", body);
+        const body = await c.req.json<any>()
+        console.log("Webhook /holders raw body:", body)
 
-        const holders = Array.isArray(body) ? body : [body];
+        const holders = Array.isArray(body) ? body : [body]
 
         for (const h of holders) {
-            if (!h.id || typeof h.holderCount === "undefined") continue;
+            if (!h.id || typeof h.holderCount === "undefined") continue
 
-            await c.env.DB.prepare(`
-          UPDATE tokens
-          SET holder_count = ?1
-          WHERE id = ?2
-        `).bind(
-                h.holderCount,
-                h.id
-            ).run();
+            const id = h.id.toLowerCase()
+            const count = Number(h.holderCount)
+
+            const result = await c.env.DB.prepare(`
+                UPDATE tokens
+                SET holder_count = ?1
+                WHERE id = ?2
+            `).bind(count, id).run()
+
+            console.log(`🔹 Updated ${id} → ${count}`, result)
         }
 
-        return c.json({ ok: true, count: holders.length });
+        return c.json({ ok: true, count: holders.length })
     } catch (err: any) {
-        console.error("Webhook /holders error:", err);
-        return c.json({ error: err.message }, 500);
+        console.error("Webhook /holders error:", err)
+        return c.json({ error: err.message }, 500)
     }
-});
-
+})
 
 router.get("/debug/kv/tokensrecords", async (c) => {
     const str = await c.env.PIPERX_PRO.get("tokens:records")
