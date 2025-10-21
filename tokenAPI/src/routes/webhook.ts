@@ -211,32 +211,40 @@ router.post("/webhook/swaps", async (c) => {
 
 router.post("/webhook/holders", async (c) => {
     try {
-        const body = await c.req.json<any>()
-        console.log("Webhook /holders raw body:", body)
+        const records = await c.req.json<any>()
+        console.log("Received Holder record(s):", records)
 
-        const holders = Array.isArray(body) ? body : [body]
+        const list = Array.isArray(records) ? records : [records]
 
-        for (const h of holders) {
-            if (!h.id || typeof h.holderCount === "undefined") continue
+        for (const rec of list) {
+            const id = rec.id?.toLowerCase()
+            const count = Number(rec.holder_count)
 
-            const id = h.id.toLowerCase()
-            const count = Number(h.holderCount)
+            if (!id || isNaN(count)) {
+                console.warn("Skip invalid record:", rec)
+                continue
+            }
+
+            console.log("Update holder_count:", { id, count })
 
             const result = await c.env.DB.prepare(`
                 UPDATE tokens
-                SET holder_count = ?1
+                 SET holder_count = ?1
                 WHERE id = ?2
-            `).bind(count, id).run()
+                `)
+                .bind(count, id)
+                .run()
 
-            console.log(`🔹 Updated ${id} → ${count}`, result)
+            console.log(`Updated holder_count for ${id}: ${count}`, result)
         }
 
-        return c.json({ ok: true, count: holders.length })
+        return c.json({ ok: true, count: list.length })
     } catch (err: any) {
         console.error("Webhook /holders error:", err)
         return c.json({ error: err.message }, 500)
     }
 })
+
 
 router.get("/debug/kv/tokensrecords", async (c) => {
     const str = await c.env.PIPERX_PRO.get("tokens:records")
