@@ -141,7 +141,7 @@ export async function refreshActiveTokens(env: Env) {
     const batch = tokenIds.slice(i, i + BATCH_SIZE);
     const placeholders = batch.map(() => "?").join(",");
     const metaSql = `
-      SELECT id, name, symbol, decimals, created_at
+      SELECT id, name, symbol, decimals, created_at, holder_count
       FROM tokens
       WHERE id IN (${placeholders})
     `;
@@ -152,6 +152,7 @@ export async function refreshActiveTokens(env: Env) {
         symbol: m.symbol,
         decimals: m.decimals,
         created_at: m.created_at,
+        holder_count: m.holder_count, 
       };
     }
   }
@@ -162,6 +163,7 @@ export async function refreshActiveTokens(env: Env) {
     symbol: metaMap[t.token_id]?.symbol ?? null,
     decimals: metaMap[t.token_id]?.decimals ?? null,
     created_at: metaMap[t.token_id]?.created_at ?? null,
+    holder_count: metaMap[t.token_id]?.holder_count ?? 0, 
   }));
 
   await env.PIPERX_PRO.put(

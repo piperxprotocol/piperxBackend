@@ -86,7 +86,7 @@ router.get("/tokeninfo", async (c) => {
     const fortyEightHoursAgo = Math.floor(Date.now() / 1000) - (48 * 3600) // 48 hours ago in seconds
 
     const recentTokensResult = await c.env.DB.prepare(
-      `SELECT id, name, symbol, decimals, created_at, pool, source
+      `SELECT id, name, symbol, decimals, created_at, pool, source, holder_count
        FROM tokens 
        WHERE created_at >= ?`
     ).bind(fortyEightHoursAgo).all<any>()
@@ -164,11 +164,12 @@ router.get("/tokeninfo", async (c) => {
     const volumeHistory = buildVolumeHistory(nowHour, allVolumeRows, tokenIds)
 
     console.log("history >>>", history)
-    const metaMap: Record<string, { name: string; symbol: string; created_at: string | null; decimals?: number; pool?: string | null; source?: string | null; }> = {};
+    const metaMap: Record<string, { name: string; symbol: string; holder_count?: number; created_at: string | null; decimals?: number; pool?: string | null; source?: string | null; }> = {};
     for (const rec of records) {
       metaMap[rec.id.toLowerCase()] = {
         name: rec.name || "null",
         symbol: rec.symbol || "null",
+        holder_count: rec.holder_count ?? 0,
         created_at: rec.created_at || null,
         decimals: rec.decimals ?? 18,
         pool: rec.pool,
@@ -182,6 +183,7 @@ router.get("/tokeninfo", async (c) => {
         metaMap[id] = {
           name: t.name || null,
           symbol: t.symbol || null,
+          holder_count: t.holder_count ?? 0,
           created_at: t.created_at || null,
           decimals: t.decimals ?? 18,
         }
@@ -230,6 +232,7 @@ router.get("/tokeninfo", async (c) => {
         id,
         name: meta.name,
         symbol: meta.symbol,
+        holder_count: meta.holder_count,
         decimals: meta.decimals,
         created_at: meta.created_at,
         now: adjustedNow,
