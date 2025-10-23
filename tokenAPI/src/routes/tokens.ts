@@ -10,7 +10,7 @@ const subgraph_storyhunt =
 const subgraph_piperx =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.22/gn"
 
-
+  
 export type TokenInfo = {
   id: string
   name: string
