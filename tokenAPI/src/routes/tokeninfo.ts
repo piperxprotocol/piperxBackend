@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import type { Env } from "../utils/env"
 
 const router = new Hono<{ Bindings: Env }>()
+const IP_ID = "0x1514000000000000000000000000000000000000"
 
 function buildHistory(
   nowHour: number,
@@ -242,8 +243,36 @@ router.get("/tokeninfo", async (c) => {
       }
     }
 
-    console.log("result >>>", result)
-    return c.json({ tokenInfo: result })
+    const poolMap: Record<string, string | null> = {}
+    for (const [id, obj] of Object.entries(result)) {
+      poolMap[id] = obj.active_pool?.pool || null
+    }
+
+    const pools = [...new Set(Object.values(poolMap).filter(Boolean))]
+    console.log("Total pools to check:", pools.length)
+
+    let validPools = new Set<string>()
+    if (pools.length > 0) {
+      const placeholders = pools.map(() => '?').join(', ')
+      const query = `
+        SELECT DISTINCT pool
+        FROM volume
+        WHERE token_id = ?
+          AND pool IN (${placeholders});
+      `
+      const res = await c.env.DB.prepare(query).bind(IP_ID, ...pools).all<any>()
+      validPools = new Set((res.results || []).map((r: any) => r.pool))
+    }
+
+    const filteredResult: Record<string, any> = {}
+    for (const [id, obj] of Object.entries(result)) {
+      const pool = obj.active_pool?.pool
+      if (pool && validPools.has(pool)) {
+        filteredResult[id] = obj
+      }
+    }
+
+    return c.json({ tokenInfo: filteredResult })
   } catch (err: any) {
     console.error("Error in /prices:", err)
     return c.json({ error: err.message }, 500)
