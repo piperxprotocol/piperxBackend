@@ -7,7 +7,7 @@ import {
   Entity,
   Bytes,
   Address,
-  BigInt,
+  BigInt
 } from "@graphprotocol/graph-ts";
 
 export class FeeAmountEnabled extends ethereum.Event {
@@ -100,7 +100,7 @@ export class UniswapV3Factory__parametersResult {
     value1: Address,
     value2: Address,
     value3: i32,
-    value4: i32,
+    value4: i32
   ) {
     this.value0 = value0;
     this.value1 = value1;
@@ -116,7 +116,7 @@ export class UniswapV3Factory__parametersResult {
     map.set("value2", ethereum.Value.fromAddress(this.value2));
     map.set(
       "value3",
-      ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(this.value3)),
+      ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(this.value3))
     );
     map.set("value4", ethereum.Value.fromI32(this.value4));
     return map;
@@ -155,8 +155,8 @@ export class UniswapV3Factory extends ethereum.SmartContract {
       [
         ethereum.Value.fromAddress(tokenA),
         ethereum.Value.fromAddress(tokenB),
-        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(fee)),
-      ],
+        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(fee))
+      ]
     );
 
     return result[0].toAddress();
@@ -165,7 +165,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
   try_createPool(
     tokenA: Address,
     tokenB: Address,
-    fee: i32,
+    fee: i32
   ): ethereum.CallResult<Address> {
     let result = super.tryCall(
       "createPool",
@@ -173,8 +173,8 @@ export class UniswapV3Factory extends ethereum.SmartContract {
       [
         ethereum.Value.fromAddress(tokenA),
         ethereum.Value.fromAddress(tokenB),
-        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(fee)),
-      ],
+        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(fee))
+      ]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -187,7 +187,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
     let result = super.call(
       "feeAmountTickSpacing",
       "feeAmountTickSpacing(uint24):(int24)",
-      [ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param0))],
+      [ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param0))]
     );
 
     return result[0].toI32();
@@ -197,7 +197,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
     let result = super.tryCall(
       "feeAmountTickSpacing",
       "feeAmountTickSpacing(uint24):(int24)",
-      [ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param0))],
+      [ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param0))]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -213,8 +213,8 @@ export class UniswapV3Factory extends ethereum.SmartContract {
       [
         ethereum.Value.fromAddress(param0),
         ethereum.Value.fromAddress(param1),
-        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param2)),
-      ],
+        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param2))
+      ]
     );
 
     return result[0].toAddress();
@@ -223,7 +223,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
   try_getPool(
     param0: Address,
     param1: Address,
-    param2: i32,
+    param2: i32
   ): ethereum.CallResult<Address> {
     let result = super.tryCall(
       "getPool",
@@ -231,8 +231,8 @@ export class UniswapV3Factory extends ethereum.SmartContract {
       [
         ethereum.Value.fromAddress(param0),
         ethereum.Value.fromAddress(param1),
-        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param2)),
-      ],
+        ethereum.Value.fromUnsignedBigInt(BigInt.fromI32(param2))
+      ]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -260,7 +260,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
     let result = super.call(
       "parameters",
       "parameters():(address,address,address,uint24,int24)",
-      [],
+      []
     );
 
     return new UniswapV3Factory__parametersResult(
@@ -268,7 +268,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
       result[1].toAddress(),
       result[2].toAddress(),
       result[3].toI32(),
-      result[4].toI32(),
+      result[4].toI32()
     );
   }
 
@@ -276,7 +276,7 @@ export class UniswapV3Factory extends ethereum.SmartContract {
     let result = super.tryCall(
       "parameters",
       "parameters():(address,address,address,uint24,int24)",
-      [],
+      []
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -288,8 +288,8 @@ export class UniswapV3Factory extends ethereum.SmartContract {
         value[1].toAddress(),
         value[2].toAddress(),
         value[3].toI32(),
-        value[4].toI32(),
-      ),
+        value[4].toI32()
+      )
     );
   }
 }

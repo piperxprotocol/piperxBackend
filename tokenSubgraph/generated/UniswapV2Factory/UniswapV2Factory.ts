@@ -7,7 +7,7 @@ import {
   Entity,
   Bytes,
   Address,
-  BigInt,
+  BigInt
 } from "@graphprotocol/graph-ts";
 
 export class PairCreated extends ethereum.Event {
@@ -47,7 +47,7 @@ export class UniswapV2Factory extends ethereum.SmartContract {
 
   allPairs(param0: BigInt): Address {
     let result = super.call("allPairs", "allPairs(uint256):(address)", [
-      ethereum.Value.fromUnsignedBigInt(param0),
+      ethereum.Value.fromUnsignedBigInt(param0)
     ]);
 
     return result[0].toAddress();
@@ -55,7 +55,7 @@ export class UniswapV2Factory extends ethereum.SmartContract {
 
   try_allPairs(param0: BigInt): ethereum.CallResult<Address> {
     let result = super.tryCall("allPairs", "allPairs(uint256):(address)", [
-      ethereum.Value.fromUnsignedBigInt(param0),
+      ethereum.Value.fromUnsignedBigInt(param0)
     ]);
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -74,7 +74,7 @@ export class UniswapV2Factory extends ethereum.SmartContract {
     let result = super.tryCall(
       "allPairsLength",
       "allPairsLength():(uint256)",
-      [],
+      []
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -87,7 +87,7 @@ export class UniswapV2Factory extends ethereum.SmartContract {
     let result = super.call(
       "createPair",
       "createPair(address,address):(address)",
-      [ethereum.Value.fromAddress(tokenA), ethereum.Value.fromAddress(tokenB)],
+      [ethereum.Value.fromAddress(tokenA), ethereum.Value.fromAddress(tokenB)]
     );
 
     return result[0].toAddress();
@@ -95,12 +95,12 @@ export class UniswapV2Factory extends ethereum.SmartContract {
 
   try_createPair(
     tokenA: Address,
-    tokenB: Address,
+    tokenB: Address
   ): ethereum.CallResult<Address> {
     let result = super.tryCall(
       "createPair",
       "createPair(address,address):(address)",
-      [ethereum.Value.fromAddress(tokenA), ethereum.Value.fromAddress(tokenB)],
+      [ethereum.Value.fromAddress(tokenA), ethereum.Value.fromAddress(tokenB)]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
@@ -142,7 +142,7 @@ export class UniswapV2Factory extends ethereum.SmartContract {
   getPair(param0: Address, param1: Address): Address {
     let result = super.call("getPair", "getPair(address,address):(address)", [
       ethereum.Value.fromAddress(param0),
-      ethereum.Value.fromAddress(param1),
+      ethereum.Value.fromAddress(param1)
     ]);
 
     return result[0].toAddress();
@@ -152,7 +152,7 @@ export class UniswapV2Factory extends ethereum.SmartContract {
     let result = super.tryCall(
       "getPair",
       "getPair(address,address):(address)",
-      [ethereum.Value.fromAddress(param0), ethereum.Value.fromAddress(param1)],
+      [ethereum.Value.fromAddress(param0), ethereum.Value.fromAddress(param1)]
     );
     if (result.reverted) {
       return new ethereum.CallResult();
