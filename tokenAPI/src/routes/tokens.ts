@@ -10,7 +10,7 @@ const subgraph_storyhunt =
 const subgraph_piperx =
   "https://api.goldsky.com/api/public/project_clzxbl27v2ce101zr2s7sfo05/subgraphs/story-dex-swaps-mainnet/1.0.22/gn"
 
-  
+
 export type TokenInfo = {
   id: string
   name: string
@@ -152,7 +152,7 @@ export async function refreshActiveTokens(env: Env) {
         symbol: m.symbol,
         decimals: m.decimals,
         created_at: m.created_at,
-        holder_count: m.holder_count, 
+        holder_count: m.holder_count,
       };
     }
   }
@@ -163,7 +163,7 @@ export async function refreshActiveTokens(env: Env) {
     symbol: metaMap[t.token_id]?.symbol ?? null,
     decimals: metaMap[t.token_id]?.decimals ?? null,
     created_at: metaMap[t.token_id]?.created_at ?? null,
-    holder_count: metaMap[t.token_id]?.holder_count ?? 0, 
+    holder_count: metaMap[t.token_id]?.holder_count ?? 0,
   }));
 
   await env.PIPERX_PRO.put(
@@ -195,5 +195,142 @@ router.get("/tokens", async (c) => {
     return c.json({ error: err.message }, 500)
   }
 })
+
+router.get("/price", async (c) => {
+  try {
+    const query = c.req.query("address") || c.req.query("addresses");
+    if (!query) {
+      return c.json({ error: "Missing address parameter" }, 400);
+    }
+
+    const tokenIds = query.split(",").map((a) => a.trim().toLowerCase());
+    if (!tokenIds.length) {
+      return c.json({ error: "No valid addresses" }, 400);
+    }
+
+    console.log("🔍 Fetching token prices for:", tokenIds);
+
+    const nowHour = Math.floor(Date.now() / 3600_000);
+    const placeholders = tokenIds.map(() => "?").join(", ");
+
+    const priceQuery = `
+      SELECT token_id, price_usd, hour_bucket
+      FROM prices
+      WHERE hour_bucket <= ?1
+        AND hour_bucket >= ?1 - 48
+        AND token_id IN (${placeholders})
+      ORDER BY hour_bucket ASC;
+    `;
+
+    const rows = await c.env.DB.prepare(priceQuery)
+      .bind(nowHour, ...tokenIds)
+      .all<any>();
+
+    const allRows = rows.results || [];
+
+    const nowMap: Record<string, { bucket: number; price: number }> = {};
+    const historyMap: Record<string, Record<number, number>> = {};
+
+    for (const row of allRows) {
+      const id = row.token_id.toLowerCase();
+      const bucket = row.hour_bucket;
+      const price = Number(row.price_usd);
+
+      if (!nowMap[id] || bucket > nowMap[id].bucket) {
+        nowMap[id] = { bucket, price };
+      }
+
+      if (!historyMap[id]) historyMap[id] = {};
+      historyMap[id][bucket] = price;
+    }
+
+    const result: Record<string, any> = {};
+    for (const id of tokenIds) {
+      const nowRaw = nowMap[id]?.price ?? 0;
+      const history = historyMap[id] || {};
+
+      const sortedBuckets = Object.keys(history)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .filter((b) => b !== nowMap[id]?.bucket);
+
+      const reversedHistory: Record<string, number> = {};
+      const reversed = sortedBuckets.reverse();
+
+      reversed.forEach((bucket, idx) => {
+        reversedHistory[`${idx + 1}h`] = Number(history[bucket]) / 1e6;
+      });
+
+      const now = nowRaw / 1e6;
+
+      result[id] = { now, history: reversedHistory };
+    }
+
+    console.log("✅ /tokenprice result:", result);
+    return c.json({ prices: result });
+  } catch (err: any) {
+    console.error(" Error in /tokenprice:", err);
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+router.get("/search", async (c) => {
+  try {
+    const { q } = c.req.query();
+    const searchQuery = (q || "").trim().toLowerCase();
+
+    if (!searchQuery) {
+      return c.json({ error: "Missing query parameter q" }, 400);
+    }
+
+    const isAddress = /^0x[a-f0-9]{40}$/.test(searchQuery);
+
+    let tokensResult;
+
+    if (isAddress) {
+      tokensResult = await c.env.DB.prepare(`
+        SELECT id, name, symbol
+        FROM tokens
+        WHERE LOWER(id) = ?
+        LIMIT 1
+      `)
+        .bind(searchQuery)
+        .all<any>();
+
+      console.log(`Token search by address "${searchQuery}" → ${tokensResult.results?.length || 0} results`);
+    } else {
+      tokensResult = await c.env.DB.prepare(`
+        SELECT id, name, symbol
+        FROM tokens
+        WHERE LOWER(symbol) LIKE ?
+        ORDER BY
+          CASE
+            WHEN LOWER(symbol) LIKE ? THEN 1
+            ELSE 2
+          END
+        LIMIT 10
+      `)
+        .bind(`%${searchQuery}%`, `${searchQuery}%`)
+        .all<any>();
+
+      console.log(`Token search by symbol "${searchQuery}" → ${tokensResult.results?.length || 0} results`);
+    }
+
+    const results = tokensResult.results || [];
+
+    return c.json({
+      query: searchQuery,
+      count: results.length,
+      tokens: results.map((t: any) => ({
+        address: t.id,
+        name: t.name,
+        symbol: t.symbol,
+      })),
+    });
+  } catch (err: any) {
+    console.error("/search error:", err);
+    return c.json({ error: err.message }, 500);
+  }
+});
 
 export default router
